@@ -1,4 +1,4 @@
--- // Services
+-- // Services skibidi>:)
 local CoreGui = game:GetService('CoreGui')
 local TweenService = game:GetService('TweenService')
 local UserInputService = game:GetService('UserInputService')
@@ -1478,7 +1478,9 @@ function Library:CreateWindow(HubName, GameName, IntroText, IntroIcon, ImprovePe
         TextColor3 = Theme.PrimaryTextColor,
         TextSize = 18,
         AutoButtonColor = false,
-        ZIndex = 5
+        Active = true,
+        Selectable = true,
+        ZIndex = 100
     }, {
         Utility:Create('UICorner', {
             CornerRadius = UDim.new(0, 5),
@@ -1532,7 +1534,10 @@ function Library:CreateWindow(HubName, GameName, IntroText, IntroIcon, ImprovePe
             Text = '+',
             TextColor3 = Theme.PrimaryTextColor,
             TextSize = 18,
-            AutoButtonColor = false
+            AutoButtonColor = false,
+            Active = true,
+            Selectable = true,
+            ZIndex = 100
         }, {
             Utility:Create('UICorner', {
                 CornerRadius = UDim.new(0, 5),
@@ -1624,6 +1629,18 @@ function Library:CreateWindow(HubName, GameName, IntroText, IntroIcon, ImprovePe
     function Library:SetMinimized(State)
         task.spawn(SetMinimized, State and true or false)
     end
+
+
+
+    function Library:ToggleUI()
+        task.spawn(function()
+            SetMinimized(not IsMinimized)
+        end)
+    end
+
+
+
+
 
     if not ImprovePerformance then
         task.spawn(function()
