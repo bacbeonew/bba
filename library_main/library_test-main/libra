@@ -1167,10 +1167,15 @@ function Library:LoadConfig(Name)
                             UpdatedTable[NewIndex] = Color3.fromRGB(NewValue[1], NewValue[2], NewValue[3])
                         end
                         Library:ChangeTheme(UpdatedTable)
-                    elseif type(Value) == 'table' then
-                        local New = Color3.fromRGB(Value[1] * 255, Value[2] * 255, Value[3] * 255)
-                        ConfigUpdates[Index]:Set(New)
+                    -- elseif type(Value) == 'table' then
+                    --     local New = Color3.fromRGB(Value[1] * 255, Value[2] * 255, Value[3] * 255)
+                    --     ConfigUpdates[Index]:Set(New)
+                    -- else
+                    elseif type(Value) == 'table' and type(Value[1]) == 'number' then
+                         local New = Color3.fromRGB(Value[1] * 255, Value[2] * 255, Value[3] * 255)
+                         ConfigUpdates[Index]:Set(New)
                     else
+
                         ConfigUpdates[Index]:Set(Value)
                     end
                 end
@@ -4906,467 +4911,957 @@ end)
                 return ToggleFunctions
             end
 
-            function Elements:CreateDropdown(Name, List, Default, DebounceAmount, Callback)
-                local Name = Name or 'Dropdown'
-                local List = List or {}
-                local Callback = Callback or function() end
-                local DebounceAmount = DebounceAmount or 0.25
-                local Default = Default or nil
-                local SelectedItem = 'None'
-                local Opened = false
-                local Debounce = false
-                local DropdownFunctions = {}
-                local Hovering = false
+            -- function Elements:CreateDropdown(Name, List, Default, DebounceAmount, Callback)
+            --     local Name = Name or 'Dropdown'
+            --     local List = List or {}
+            --     local Callback = Callback or function() end
+            --     local DebounceAmount = DebounceAmount or 0.25
+            --     local Default = Default or nil
+            --     local SelectedItem = 'None'
+            --     local Opened = false
+            --     local Debounce = false
+            --     local DropdownFunctions = {}
+            --     local Hovering = false
 
-                Utility:Create('Frame', {
-                    Name = Name..'DropdownHolder',
-                    Parent = Section,
-                    BackgroundColor3 = Theme.PrimaryElementColor,
-                    Size = UDim2.new(0, 410, 0, 40)
-                }, {
-                    Utility:Create('UICorner', {
-                        CornerRadius = UDim.new(0, 5),
-                        Name = Name..'DropdownHolderCorner'
-                    }),
-                    Utility:Create('UIStroke', {
-                        Name = Name..'DropdownHolderStroke',
-                        ApplyStrokeMode = 'Contextual',
-                        Color = Theme.UIStrokeColor,
-                        LineJoinMode = 'Round',
-                        Thickness = 1
-                    }),
-                    Utility:Create('TextLabel', {
-                        Name = Name..'DropdownText',
-                        BackgroundColor3 = Theme.PrimaryElementColor,
-                        BackgroundTransparency = 1,
-                        Position = UDim2.new(0, 0, 0, 5),
-                        Size = UDim2.new(0, 200, 0, 30),
-                        Font = Enum.Font.Gotham,
-                        Text = Name,
-                        TextColor3 = Theme.PrimaryTextColor,
-                        TextSize = 16,
-                        TextXAlignment = Enum.TextXAlignment.Left
-                    }, {
-                        Utility:Create('UIPadding', {
-                            Name = Name..'DropdownTextPadding',
-                            PaddingLeft = UDim.new(0, 7)
-                        })
-                    }),
-                    Utility:Create('ImageLabel', {
-                        Name = Name..'DropdownIcon',
-                        BackgroundColor3 = Theme.PrimaryElementColor,
-                        BackgroundTransparency = 1,
-                        BorderSizePixel = 0,
-                        Position = UDim2.new(0, 377, 0, 8),
-                        Rotation = 270,
-                        Size = UDim2.new(0, 25, 0, 25),
-                        Image = 'rbxassetid://3926305904',
-                        ImageColor3 = Theme.SecondaryTextColor,
-                        ImageRectOffset = Vector2.new(964, 284),
-                        ImageRectSize = Vector2.new(36, 36)
-                    }),
-                    Utility:Create('TextLabel', {
-                        Name = Name..'DropdownSelectedText',
-                        BackgroundColor3 = Theme.PrimaryElementColor,
-                        BackgroundTransparency = 1,
-                        Position = UDim2.new(0, 199, 0, 8),
-                        Size = UDim2.new(0, 176, 0, 25),
-                        Font = Enum.Font.Gotham,
-                        Text = SelectedItem,
-                        TextColor3 = Theme.SecondaryTextColor,
-                        TextSize = 14,
-                        TextXAlignment = Enum.TextXAlignment.Right
-                    }, {
-                        Utility:Create('UICorner', {
-                            CornerRadius = UDim.new(0, 5),
-                            Name = Name..'DropdownSelectedTextCorner'
-                        }),
-                        Utility:Create('UIPadding', {
-                            Name = Name..'DropdownSelectedTextPadding',
-                            PaddingRight = UDim.new(0, 7)
-                        })
-                    }),
-                    Utility:Create('ScrollingFrame', {
-                        Name = Name..'DropList',
-                        Active = true,
-                        BackgroundColor3 = Theme.PrimaryElementColor,
-                        BorderSizePixel = 0,
-                        Position = UDim2.new(0, 0, 1, 0),
-                        Size = UDim2.new(0, 410, 0, 30),
-                        Visible = false,
-                        ScrollBarImageColor3 = Theme.ScrollBarColor,
-                        ScrollBarThickness = 3
-                    }, {
-                        Utility:Create('UIStroke', {
-                            Name = Name..'DropListStroke',
-                            ApplyStrokeMode = 'Contextual',
-                            Color = Theme.UIStrokeColor,
-                            LineJoinMode = 'Round',
-                            Thickness = 1
-                        }),
-                        Utility:Create('UIListLayout', {
-                            Name = Name..'DropListLayout',
-                            SortOrder = Enum.SortOrder.LayoutOrder
-                        }),
-                        Utility:Create('UICorner', {
-                            CornerRadius = UDim.new(0, 5),
-                            Name = Name..'DropdownListCorner'
-                        })
-                    }),
-                    Utility:Create('TextButton', {
-                        Name = Name..'DropdownButton',
-                        BackgroundColor3 = Theme.PrimaryElementColor,
-                        BackgroundTransparency = 1,
-                        BorderSizePixel = 0,
-                        Position = UDim2.new(0, 0, 0, 0),
-                        Size = UDim2.new(0, 410, 0, 40),
-                        Font = Enum.Font.SourceSans,
-                        Text = '',
-                        TextColor3 = Color3.fromRGB(0, 0, 0),
-                        TextSize = 14
-                    }, {
-                        Utility:Create('UICorner', {
-                            CornerRadius = UDim.new(0, 5),
-                            Name = Name..'DropdownButtonCorner'
-                        })
-                    })
-                })
-                Utility:Create('Frame', {
-                    Name = Name..'DropdownFiller',
-                    Parent = Section,
-                    Visible = false,
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(0, 410, 0, 0)
-                })
+            --     Utility:Create('Frame', {
+            --         Name = Name..'DropdownHolder',
+            --         Parent = Section,
+            --         BackgroundColor3 = Theme.PrimaryElementColor,
+            --         Size = UDim2.new(0, 410, 0, 40)
+            --     }, {
+            --         Utility:Create('UICorner', {
+            --             CornerRadius = UDim.new(0, 5),
+            --             Name = Name..'DropdownHolderCorner'
+            --         }),
+            --         Utility:Create('UIStroke', {
+            --             Name = Name..'DropdownHolderStroke',
+            --             ApplyStrokeMode = 'Contextual',
+            --             Color = Theme.UIStrokeColor,
+            --             LineJoinMode = 'Round',
+            --             Thickness = 1
+            --         }),
+            --         Utility:Create('TextLabel', {
+            --             Name = Name..'DropdownText',
+            --             BackgroundColor3 = Theme.PrimaryElementColor,
+            --             BackgroundTransparency = 1,
+            --             Position = UDim2.new(0, 0, 0, 5),
+            --             Size = UDim2.new(0, 200, 0, 30),
+            --             Font = Enum.Font.Gotham,
+            --             Text = Name,
+            --             TextColor3 = Theme.PrimaryTextColor,
+            --             TextSize = 16,
+            --             TextXAlignment = Enum.TextXAlignment.Left
+            --         }, {
+            --             Utility:Create('UIPadding', {
+            --                 Name = Name..'DropdownTextPadding',
+            --                 PaddingLeft = UDim.new(0, 7)
+            --             })
+            --         }),
+            --         Utility:Create('ImageLabel', {
+            --             Name = Name..'DropdownIcon',
+            --             BackgroundColor3 = Theme.PrimaryElementColor,
+            --             BackgroundTransparency = 1,
+            --             BorderSizePixel = 0,
+            --             Position = UDim2.new(0, 377, 0, 8),
+            --             Rotation = 270,
+            --             Size = UDim2.new(0, 25, 0, 25),
+            --             Image = 'rbxassetid://3926305904',
+            --             ImageColor3 = Theme.SecondaryTextColor,
+            --             ImageRectOffset = Vector2.new(964, 284),
+            --             ImageRectSize = Vector2.new(36, 36)
+            --         }),
+            --         Utility:Create('TextLabel', {
+            --             Name = Name..'DropdownSelectedText',
+            --             BackgroundColor3 = Theme.PrimaryElementColor,
+            --             BackgroundTransparency = 1,
+            --             Position = UDim2.new(0, 199, 0, 8),
+            --             Size = UDim2.new(0, 176, 0, 25),
+            --             Font = Enum.Font.Gotham,
+            --             Text = SelectedItem,
+            --             TextColor3 = Theme.SecondaryTextColor,
+            --             TextSize = 14,
+            --             TextXAlignment = Enum.TextXAlignment.Right
+            --         }, {
+            --             Utility:Create('UICorner', {
+            --                 CornerRadius = UDim.new(0, 5),
+            --                 Name = Name..'DropdownSelectedTextCorner'
+            --             }),
+            --             Utility:Create('UIPadding', {
+            --                 Name = Name..'DropdownSelectedTextPadding',
+            --                 PaddingRight = UDim.new(0, 7)
+            --             })
+            --         }),
+            --         Utility:Create('ScrollingFrame', {
+            --             Name = Name..'DropList',
+            --             Active = true,
+            --             BackgroundColor3 = Theme.PrimaryElementColor,
+            --             BorderSizePixel = 0,
+            --             Position = UDim2.new(0, 0, 1, 0),
+            --             Size = UDim2.new(0, 410, 0, 30),
+            --             Visible = false,
+            --             ScrollBarImageColor3 = Theme.ScrollBarColor,
+            --             ScrollBarThickness = 3
+            --         }, {
+            --             Utility:Create('UIStroke', {
+            --                 Name = Name..'DropListStroke',
+            --                 ApplyStrokeMode = 'Contextual',
+            --                 Color = Theme.UIStrokeColor,
+            --                 LineJoinMode = 'Round',
+            --                 Thickness = 1
+            --             }),
+            --             Utility:Create('UIListLayout', {
+            --                 Name = Name..'DropListLayout',
+            --                 SortOrder = Enum.SortOrder.LayoutOrder
+            --             }),
+            --             Utility:Create('UICorner', {
+            --                 CornerRadius = UDim.new(0, 5),
+            --                 Name = Name..'DropdownListCorner'
+            --             })
+            --         }),
+            --         Utility:Create('TextButton', {
+            --             Name = Name..'DropdownButton',
+            --             BackgroundColor3 = Theme.PrimaryElementColor,
+            --             BackgroundTransparency = 1,
+            --             BorderSizePixel = 0,
+            --             Position = UDim2.new(0, 0, 0, 0),
+            --             Size = UDim2.new(0, 410, 0, 40),
+            --             Font = Enum.Font.SourceSans,
+            --             Text = '',
+            --             TextColor3 = Color3.fromRGB(0, 0, 0),
+            --             TextSize = 14
+            --         }, {
+            --             Utility:Create('UICorner', {
+            --                 CornerRadius = UDim.new(0, 5),
+            --                 Name = Name..'DropdownButtonCorner'
+            --             })
+            --         })
+            --     })
+            --     Utility:Create('Frame', {
+            --         Name = Name..'DropdownFiller',
+            --         Parent = Section,
+            --         Visible = false,
+            --         BackgroundTransparency = 1,
+            --         Size = UDim2.new(0, 410, 0, 0)
+            --     })
 
-                local DropdownHolder = Section[Name..'DropdownHolder']
-                local DropList = DropdownHolder[Name..'DropList']
-                local DropdownButton = DropdownHolder[Name..'DropdownButton']
-                local DropdownIcon = DropdownHolder[Name..'DropdownIcon']
-                local DropdownSelectedText = DropdownHolder[Name..'DropdownSelectedText']
-                local DropListLayout = DropList[Name..'DropListLayout']
-                local DropdownFiller = Section[Name..'DropdownFiller']
+            --     local DropdownHolder = Section[Name..'DropdownHolder']
+            --     local DropList = DropdownHolder[Name..'DropList']
+            --     local DropdownButton = DropdownHolder[Name..'DropdownButton']
+            --     local DropdownIcon = DropdownHolder[Name..'DropdownIcon']
+            --     local DropdownSelectedText = DropdownHolder[Name..'DropdownSelectedText']
+            --     local DropListLayout = DropList[Name..'DropListLayout']
+            --     local DropdownFiller = Section[Name..'DropdownFiller']
 
-                UpdateSectionSize()
+            --     UpdateSectionSize()
 
-                Config[Name] = Default
+            --     Config[Name] = Default
 
-                if not ImprovePerformance then
-                    task.spawn(function()
-                        while task.wait() do
-                            if ChangeTheme then
-                                if not BreakAllLoops then
-                                    if not Hovering then
-                                        Utility:Tween(DropdownHolder, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
-                                    end
-                                    Utility:Tween(DropdownHolder[Name..'DropdownHolderStroke'], {Color = Theme.UIStrokeColor}, 0.25)
-                                    Utility:Tween(DropdownHolder[Name..'DropdownText'], {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
-                                    Utility:Tween(DropdownHolder[Name..'DropdownText'], {TextColor3 = Theme.PrimaryTextColor}, 0.25)
-                                    Utility:Tween(DropdownIcon, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
-                                    Utility:Tween(DropdownIcon, {ImageColor3 = Theme.SecondaryTextColor}, 0.25)
-                                    Utility:Tween(DropdownSelectedText, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
-                                    Utility:Tween(DropdownSelectedText, {TextColor3 = Theme.SecondaryTextColor}, 0.25)
-                                    Utility:Tween(DropList, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
-                                    Utility:Tween(DropList, {ScrollBarImageColor3 = Theme.ScrollBarColor}, 0.25)
-                                    Utility:Tween(DropList[Name..'DropListStroke'], {Color = Theme.UIStrokeColor}, 0.25)
-                                    Utility:Tween(DropdownButton, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
-                                else
-                                    break
-                                end
-                            end
-                        end
-                    end)
-                end
+            --     if not ImprovePerformance then
+            --         task.spawn(function()
+            --             while task.wait() do
+            --                 if ChangeTheme then
+            --                     if not BreakAllLoops then
+            --                         if not Hovering then
+            --                             Utility:Tween(DropdownHolder, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
+            --                         end
+            --                         Utility:Tween(DropdownHolder[Name..'DropdownHolderStroke'], {Color = Theme.UIStrokeColor}, 0.25)
+            --                         Utility:Tween(DropdownHolder[Name..'DropdownText'], {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
+            --                         Utility:Tween(DropdownHolder[Name..'DropdownText'], {TextColor3 = Theme.PrimaryTextColor}, 0.25)
+            --                         Utility:Tween(DropdownIcon, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
+            --                         Utility:Tween(DropdownIcon, {ImageColor3 = Theme.SecondaryTextColor}, 0.25)
+            --                         Utility:Tween(DropdownSelectedText, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
+            --                         Utility:Tween(DropdownSelectedText, {TextColor3 = Theme.SecondaryTextColor}, 0.25)
+            --                         Utility:Tween(DropList, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
+            --                         Utility:Tween(DropList, {ScrollBarImageColor3 = Theme.ScrollBarColor}, 0.25)
+            --                         Utility:Tween(DropList[Name..'DropListStroke'], {Color = Theme.UIStrokeColor}, 0.25)
+            --                         Utility:Tween(DropdownButton, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
+            --                     else
+            --                         break
+            --                     end
+            --                 end
+            --             end
+            --         end)
+            --     end
 
-                DropdownButton.MouseButton1Click:Connect(function()
-                    if DropdownDelay > 0 then task.wait(DropdownDelay) end
-                    if not Debounce then
-                        if Opened then
-                            Opened = false
-                            Utility:Tween(DropdownFiller, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
-                            Utility:Tween(DropList, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
-                            Utility:Tween(DropdownIcon, {Rotation = 270}, 0.25)
-                            if #List <= 5 then
-                                Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
-                                Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
-                            else
-                                Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, 150)}, 0.25)
-                                Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, 150)}, 0.25)
-                            end
-                            Debounce = true
-                            task.wait(DebounceAmount)
-                            Debounce = false
-                            DropList.Visible = false
-                            DropdownFiller.Visible = false
+            --     DropdownButton.MouseButton1Click:Connect(function()
+            --         if DropdownDelay > 0 then task.wait(DropdownDelay) end
+            --         if not Debounce then
+            --             if Opened then
+            --                 Opened = false
+            --                 Utility:Tween(DropdownFiller, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
+            --                 Utility:Tween(DropList, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
+            --                 Utility:Tween(DropdownIcon, {Rotation = 270}, 0.25)
+            --                 if #List <= 5 then
+            --                     Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+            --                     Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+            --                 else
+            --                     Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, 150)}, 0.25)
+            --                     Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, 150)}, 0.25)
+            --                 end
+            --                 Debounce = true
+            --                 task.wait(DebounceAmount)
+            --                 Debounce = false
+            --                 DropList.Visible = false
+            --                 DropdownFiller.Visible = false
                             
-                        else
-                            Opened = true
-                            DropdownFiller.Visible = true
-                            DropList.Visible = true
-                            if #List <= 5 then
-                                Utility:Tween(DropList, {Size = UDim2.new(0, 410, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
-                                Utility:Tween(DropdownFiller, {Size = UDim2.new(0, 410, 0, DropListLayout.AbsoluteContentSize.Y - 6)}, 0.25)
-                                Utility:Tween(DropList, {CanvasSize = UDim2.new(0, 400, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
-                                Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize + UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
-                                Utility:Tween(Section, {Size = Section.Size + UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
-                            else
-                                Utility:Tween(DropList, {Size = UDim2.new(0, 410, 0, 150)}, 0.25)
-                                Utility:Tween(DropList, {CanvasSize = UDim2.new(0, 400, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
-                                Utility:Tween(DropdownFiller, {Size = UDim2.new(0, 410, 0, 144)}, 0.25)
-                                Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize + UDim2.new(0, 0, 0, 150)}, 0.25)
-                                Utility:Tween(Section, {Size = Section.Size + UDim2.new(0, 0, 0, 150)}, 0.25)
-                            end
-                            Utility:Tween(DropdownIcon, {Rotation = 90}, 0.25)
-                            -------------
-                            AutoScrollIntoView(DropList)
-                            -------------
-                            Debounce = true
-                            task.wait(DebounceAmount)
-                            Debounce = false
-                        end
-                    end
-                end)
+            --             else
+            --                 Opened = true
+            --                 DropdownFiller.Visible = true
+            --                 DropList.Visible = true
+            --                 if #List <= 5 then
+            --                     Utility:Tween(DropList, {Size = UDim2.new(0, 410, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+            --                     Utility:Tween(DropdownFiller, {Size = UDim2.new(0, 410, 0, DropListLayout.AbsoluteContentSize.Y - 6)}, 0.25)
+            --                     Utility:Tween(DropList, {CanvasSize = UDim2.new(0, 400, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+            --                     Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize + UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+            --                     Utility:Tween(Section, {Size = Section.Size + UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+            --                 else
+            --                     Utility:Tween(DropList, {Size = UDim2.new(0, 410, 0, 150)}, 0.25)
+            --                     Utility:Tween(DropList, {CanvasSize = UDim2.new(0, 400, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+            --                     Utility:Tween(DropdownFiller, {Size = UDim2.new(0, 410, 0, 144)}, 0.25)
+            --                     Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize + UDim2.new(0, 0, 0, 150)}, 0.25)
+            --                     Utility:Tween(Section, {Size = Section.Size + UDim2.new(0, 0, 0, 150)}, 0.25)
+            --                 end
+            --                 Utility:Tween(DropdownIcon, {Rotation = 90}, 0.25)
+            --                 -------------
+            --                 AutoScrollIntoView(DropList)
+            --                 -------------
+            --                 Debounce = true
+            --                 task.wait(DebounceAmount)
+            --                 Debounce = false
+            --             end
+            --         end
+            --     end)
 
-                for _, Item in next, List do
-                    Utility:Create('TextButton', {
-                        Name = Item..'OptionButton',
-                        Parent = DropList,
-                        BackgroundColor3 = Theme.PrimaryElementColor,
-                        BorderSizePixel = 0,
-                        Size = UDim2.new(0, 410, 0, 30),
-                        Font = Enum.Font.SourceSans,
-                        TextColor3 = Theme.SecondaryTextColor,
-                        TextSize = 16,
-                        AutoButtonColor = false,
-                        Text = Item,
-                        TextXAlignment = Enum.TextXAlignment.Left
-                    }, {
-                        Utility:Create('UIPadding', {
-                            Name = Item..'OptionButtonPadding',
-                            PaddingLeft = UDim.new(0, 7)
-                        }),
-                        Utility:Create('UICorner', {
-                            CornerRadius = UDim.new(0, 5),
-                            Name = Item..'OptionButtonCorner'
-                        })
-                    })
+            --     for _, Item in next, List do
+            --         Utility:Create('TextButton', {
+            --             Name = Item..'OptionButton',
+            --             Parent = DropList,
+            --             BackgroundColor3 = Theme.PrimaryElementColor,
+            --             BorderSizePixel = 0,
+            --             Size = UDim2.new(0, 410, 0, 30),
+            --             Font = Enum.Font.SourceSans,
+            --             TextColor3 = Theme.SecondaryTextColor,
+            --             TextSize = 16,
+            --             AutoButtonColor = false,
+            --             Text = Item,
+            --             TextXAlignment = Enum.TextXAlignment.Left
+            --         }, {
+            --             Utility:Create('UIPadding', {
+            --                 Name = Item..'OptionButtonPadding',
+            --                 PaddingLeft = UDim.new(0, 7)
+            --             }),
+            --             Utility:Create('UICorner', {
+            --                 CornerRadius = UDim.new(0, 5),
+            --                 Name = Item..'OptionButtonCorner'
+            --             })
+            --         })
 
-                    local OptionButton = DropList[Item..'OptionButton']
+            --         local OptionButton = DropList[Item..'OptionButton']
 
-                    if not ImprovePerformance then
-                        task.spawn(function()
-                            while task.wait() do
-                                if ChangeTheme then
-                                    if not BreakAllLoops then
-                                        if not Hovering then
-                                            Utility:Tween(OptionButton, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
-                                        end
-                                        Utility:Tween(OptionButton, {TextColor3 = Theme.SecondaryTextColor}, 0.25)
-                                    else
-                                        break
-                                    end
-                                end
-                            end
-                        end)
-                    end
+            --         if not ImprovePerformance then
+            --             task.spawn(function()
+            --                 while task.wait() do
+            --                     if ChangeTheme then
+            --                         if not BreakAllLoops then
+            --                             if not Hovering then
+            --                                 Utility:Tween(OptionButton, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
+            --                             end
+            --                             Utility:Tween(OptionButton, {TextColor3 = Theme.SecondaryTextColor}, 0.25)
+            --                         else
+            --                             break
+            --                         end
+            --                     end
+            --                 end
+            --             end)
+            --         end
 
-                    OptionButton.MouseEnter:Connect(function()
-                        Hovering = true
-                        Utility:Tween(OptionButton, {BackgroundColor3 = Utility:Lighten(Theme.PrimaryElementColor)}, 0.5)
-                    end)
+            --         OptionButton.MouseEnter:Connect(function()
+            --             Hovering = true
+            --             Utility:Tween(OptionButton, {BackgroundColor3 = Utility:Lighten(Theme.PrimaryElementColor)}, 0.5)
+            --         end)
     
-                    OptionButton.MouseLeave:Connect(function()
-                        Utility:Tween(OptionButton, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.5)
-                        Hovering = false
-                    end)
+            --         OptionButton.MouseLeave:Connect(function()
+            --             Utility:Tween(OptionButton, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.5)
+            --             Hovering = false
+            --         end)
 
-                    OptionButton.MouseButton1Click:Connect(function()
-                        for _, Button in next, DropList:GetChildren() do
-                            if Button:IsA('TextButton') then
-                                Utility:Tween(Button, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
-                            end
-                        end
-                        Utility:Tween(OptionButton, {BackgroundColor3 = Utility:Lighten(Theme.PrimaryElementColor)}, 0.25)
-                        DropdownSelectedText.Text = Item
-                        Callback(Item)
-                        Config[Name] = Item
-                        Opened = false
-                        if #List <= 5 then
-                            Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
-                            Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
-                        else
-                            Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, 150)}, 0.25)
-                            Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, 150)}, 0.25)
-                        end
-                        Utility:Tween(DropdownFiller, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
-                        Utility:Tween(DropList, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
-                        Utility:Tween(DropdownIcon, {Rotation = 270}, 0.25)
-                        task.wait(0.25)
-                        DropList.Visible = false
-                        DropdownFiller.Visible = false
-                    end)
-                end
+            --         OptionButton.MouseButton1Click:Connect(function()
+            --             for _, Button in next, DropList:GetChildren() do
+            --                 if Button:IsA('TextButton') then
+            --                     Utility:Tween(Button, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
+            --                 end
+            --             end
+            --             Utility:Tween(OptionButton, {BackgroundColor3 = Utility:Lighten(Theme.PrimaryElementColor)}, 0.25)
+            --             DropdownSelectedText.Text = Item
+            --             Callback(Item)
+            --             Config[Name] = Item
+            --             Opened = false
+            --             if #List <= 5 then
+            --                 Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+            --                 Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+            --             else
+            --                 Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, 150)}, 0.25)
+            --                 Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, 150)}, 0.25)
+            --             end
+            --             Utility:Tween(DropdownFiller, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
+            --             Utility:Tween(DropList, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
+            --             Utility:Tween(DropdownIcon, {Rotation = 270}, 0.25)
+            --             task.wait(0.25)
+            --             DropList.Visible = false
+            --             DropdownFiller.Visible = false
+            --         end)
+            --     end
 
-                if Default ~= nil then
-                    local Option = DropList[Default..'OptionButton']
-                    Utility:Tween(Option, {BackgroundColor3 = Utility:Lighten(Theme.PrimaryElementColor)}, 0.25)
-                    DropdownSelectedText.Text = Default
-                    Callback(Default)
-                end
+            --     if Default ~= nil then
+            --         local Option = DropList[Default..'OptionButton']
+            --         Utility:Tween(Option, {BackgroundColor3 = Utility:Lighten(Theme.PrimaryElementColor)}, 0.25)
+            --         DropdownSelectedText.Text = Default
+            --         Callback(Default)
+            --     end
 
-                DropdownHolder.MouseEnter:Connect(function()
-                    Hovering = true
-                    Utility:Tween(DropdownHolder, {BackgroundColor3 = Utility:Lighten(Theme.PrimaryElementColor)}, 0.5)
-                end)
+            --     DropdownHolder.MouseEnter:Connect(function()
+            --         Hovering = true
+            --         Utility:Tween(DropdownHolder, {BackgroundColor3 = Utility:Lighten(Theme.PrimaryElementColor)}, 0.5)
+            --     end)
 
-                DropdownHolder.MouseLeave:Connect(function()
-                    Utility:Tween(DropdownHolder, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.5)
-                    Hovering = false
-                end)
+            --     DropdownHolder.MouseLeave:Connect(function()
+            --         Utility:Tween(DropdownHolder, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.5)
+            --         Hovering = false
+            --     end)
 
-                function DropdownFunctions:Set(Value)
-                    SelectedItem = tostring(Value)
-                    --DropdownSelectedText = tostring(Value)
-                    DropdownSelectedText.Text = tostring(Value) 
-                    Callback(Value)
-                end
-                ConfigUpdates[Name] = DropdownFunctions
+            --     function DropdownFunctions:Set(Value)
+            --         SelectedItem = tostring(Value)
+            --         --DropdownSelectedText = tostring(Value)
+            --         DropdownSelectedText.Text = tostring(Value) 
+            --         Callback(Value)
+            --     end
+            --     ConfigUpdates[Name] = DropdownFunctions
 
-                function DropdownFunctions:UpdateDropdown(NewList)
-                    task.wait(0.25)
-                    local NewList = NewList or {}
-                    if Opened then
-                        Opened = false
-                        Utility:Tween(DropdownFiller, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
-                        Utility:Tween(DropList, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
-                        Utility:Tween(DropdownIcon, {Rotation = 270}, 0.25)
-                        if #List <= 5 then
-                            Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
-                            Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
-                        else
-                            Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, 150)}, 0.25)
-                            Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, 150)}, 0.25)
-                        end
-                        DropList.Visible = false
-                        DropdownFiller.Visible = false
-                    end
-                    task.wait(0.25)
-                    for _, Item in next, DropList:GetChildren() do
-                        if Item:IsA('TextButton') then
-                            Item:Destroy()
-                        end
-                    end
-                    List = NewList
+            --     function DropdownFunctions:UpdateDropdown(NewList)
+            --         task.wait(0.25)
+            --         local NewList = NewList or {}
+            --         if Opened then
+            --             Opened = false
+            --             Utility:Tween(DropdownFiller, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
+            --             Utility:Tween(DropList, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
+            --             Utility:Tween(DropdownIcon, {Rotation = 270}, 0.25)
+            --             if #List <= 5 then
+            --                 Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+            --                 Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+            --             else
+            --                 Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, 150)}, 0.25)
+            --                 Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, 150)}, 0.25)
+            --             end
+            --             DropList.Visible = false
+            --             DropdownFiller.Visible = false
+            --         end
+            --         task.wait(0.25)
+            --         for _, Item in next, DropList:GetChildren() do
+            --             if Item:IsA('TextButton') then
+            --                 Item:Destroy()
+            --             end
+            --         end
+            --         List = NewList
 
-                    if Opened then
-                        Opened = false
-                        Utility:Tween(DropdownFiller, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
-                        Utility:Tween(DropList, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
-                        Utility:Tween(DropdownIcon, {Rotation = 270}, 0.25)
-                        if #List <= 5 then
-                            Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y + 150)}, 0.25)
-                            Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y + 150)}, 0.25)
-                        else
-                            Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, 90)}, 0.25)
-                            Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, 90)}, 0.25)
-                        end
-                        Debounce = true
-                        task.wait(DebounceAmount)
-                        Debounce = false
-                        DropList.Visible = false
-                        DropdownFiller.Visible = false
-                    end
+            --         if Opened then
+            --             Opened = false
+            --             Utility:Tween(DropdownFiller, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
+            --             Utility:Tween(DropList, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
+            --             Utility:Tween(DropdownIcon, {Rotation = 270}, 0.25)
+            --             if #List <= 5 then
+            --                 Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y + 150)}, 0.25)
+            --                 Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y + 150)}, 0.25)
+            --             else
+            --                 Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, 90)}, 0.25)
+            --                 Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, 90)}, 0.25)
+            --             end
+            --             Debounce = true
+            --             task.wait(DebounceAmount)
+            --             Debounce = false
+            --             DropList.Visible = false
+            --             DropdownFiller.Visible = false
+            --         end
 
-                    for _, Item in next, NewList do
-                        Utility:Create('TextButton', {
-                            Name = Item..'OptionButton',
-                            Parent = DropList,
-                            BackgroundColor3 = Theme.PrimaryElementColor,
-                            BorderSizePixel = 0,
-                            Size = UDim2.new(0, 410, 0, 30),
-                            Font = Enum.Font.SourceSans,
-                            TextColor3 = Theme.SecondaryTextColor,
-                            TextSize = 16,
-                            AutoButtonColor = false,
-                            Text = Item,
-                            TextXAlignment = Enum.TextXAlignment.Left
-                        }, {
-                            Utility:Create('UIPadding', {
-                                Name = Item..'OptionButtonPadding',
-                                PaddingLeft = UDim.new(0, 7)
-                            }),
-                            Utility:Create('UICorner', {
-                                CornerRadius = UDim.new(0, 5),
-                                Name = Item..'OptionButtonCorner'
-                            })
-                        })
+            --         for _, Item in next, NewList do
+            --             Utility:Create('TextButton', {
+            --                 Name = Item..'OptionButton',
+            --                 Parent = DropList,
+            --                 BackgroundColor3 = Theme.PrimaryElementColor,
+            --                 BorderSizePixel = 0,
+            --                 Size = UDim2.new(0, 410, 0, 30),
+            --                 Font = Enum.Font.SourceSans,
+            --                 TextColor3 = Theme.SecondaryTextColor,
+            --                 TextSize = 16,
+            --                 AutoButtonColor = false,
+            --                 Text = Item,
+            --                 TextXAlignment = Enum.TextXAlignment.Left
+            --             }, {
+            --                 Utility:Create('UIPadding', {
+            --                     Name = Item..'OptionButtonPadding',
+            --                     PaddingLeft = UDim.new(0, 7)
+            --                 }),
+            --                 Utility:Create('UICorner', {
+            --                     CornerRadius = UDim.new(0, 5),
+            --                     Name = Item..'OptionButtonCorner'
+            --                 })
+            --             })
 
-                        UpdateSectionSize()
+            --             UpdateSectionSize()
 
-                        if #List == 0 then
-                            DropdownSelectedText.Text = 'None'
-                            SelectedItem = 'None'
-                        end
+            --             if #List == 0 then
+            --                 DropdownSelectedText.Text = 'None'
+            --                 SelectedItem = 'None'
+            --             end
     
-                        local OptionButton = DropList[Item..'OptionButton']
+            --             local OptionButton = DropList[Item..'OptionButton']
 
-                        if not ImprovePerformance then
-                            task.spawn(function()
-                                while task.wait() do
-                                    if ChangeTheme then
-                                        if not BreakAllLoops then
-                                            if not Hovering then
-                                                Utility:Tween(OptionButton, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
-                                            end
-                                            Utility:Tween(OptionButton, {TextColor3 = Theme.SecondaryTextColor}, 0.25)
-                                        else
-                                            break
-                                        end
-                                    end
-                                end
-                            end)
-                        end
+            --             if not ImprovePerformance then
+            --                 task.spawn(function()
+            --                     while task.wait() do
+            --                         if ChangeTheme then
+            --                             if not BreakAllLoops then
+            --                                 if not Hovering then
+            --                                     Utility:Tween(OptionButton, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
+            --                                 end
+            --                                 Utility:Tween(OptionButton, {TextColor3 = Theme.SecondaryTextColor}, 0.25)
+            --                             else
+            --                                 break
+            --                             end
+            --                         end
+            --                     end
+            --                 end)
+            --             end
 
-                        OptionButton.MouseEnter:Connect(function()
-                            Hovering = true
-                            Utility:Tween(OptionButton, {BackgroundColor3 = Utility:Lighten(Theme.PrimaryElementColor)}, 0.5)
-                        end)
+            --             OptionButton.MouseEnter:Connect(function()
+            --                 Hovering = true
+            --                 Utility:Tween(OptionButton, {BackgroundColor3 = Utility:Lighten(Theme.PrimaryElementColor)}, 0.5)
+            --             end)
         
-                        OptionButton.MouseLeave:Connect(function()
-                            Utility:Tween(OptionButton, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.5)
-                            Hovering = false
-                        end)
+            --             OptionButton.MouseLeave:Connect(function()
+            --                 Utility:Tween(OptionButton, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.5)
+            --                 Hovering = false
+            --             end)
     
-                        OptionButton.MouseButton1Click:Connect(function()
-                            for _, Button in next, DropList:GetChildren() do
-                                if Button:IsA('TextButton') then
-                                    Utility:Tween(Button, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
-                                end
-                            end
-                            Utility:Tween(OptionButton, {BackgroundColor3 = Utility:Lighten(Theme.PrimaryElementColor)}, 0.25)
-                            DropdownSelectedText.Text = tostring(Item)
-                            Callback(Item)
-                            Config[Name] = Item
-                            task.wait(0.5)
-                            Opened = false
-                            if #NewList <= 5 then
-                                Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
-                                Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
-                            else
-                                Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, 150)}, 0.25)
-                                Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, 150)}, 0.25)
-                            end
-                            Utility:Tween(DropdownFiller, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
-                            Utility:Tween(DropList, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
-                            Utility:Tween(DropdownIcon, {Rotation = 270}, 0.25)
-                            task.wait(0.25)
-                            DropList.Visible = false
-                            DropdownFiller.Visible = false
-                        end)
+            --             OptionButton.MouseButton1Click:Connect(function()
+            --                 for _, Button in next, DropList:GetChildren() do
+            --                     if Button:IsA('TextButton') then
+            --                         Utility:Tween(Button, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
+            --                     end
+            --                 end
+            --                 Utility:Tween(OptionButton, {BackgroundColor3 = Utility:Lighten(Theme.PrimaryElementColor)}, 0.25)
+            --                 DropdownSelectedText.Text = tostring(Item)
+            --                 Callback(Item)
+            --                 Config[Name] = Item
+            --                 task.wait(0.5)
+            --                 Opened = false
+            --                 if #NewList <= 5 then
+            --                     Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+            --                     Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+            --                 else
+            --                     Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, 150)}, 0.25)
+            --                     Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, 150)}, 0.25)
+            --                 end
+            --                 Utility:Tween(DropdownFiller, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
+            --                 Utility:Tween(DropList, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
+            --                 Utility:Tween(DropdownIcon, {Rotation = 270}, 0.25)
+            --                 task.wait(0.25)
+            --                 DropList.Visible = false
+            --                 DropdownFiller.Visible = false
+            --             end)
+            --         end
+            --     end
+            --     return DropdownFunctions
+            -- end
+
+            function Elements:CreateDropdown(Name, List, Default, DebounceAmount, Callback, Multi)
+    local Name = Name or 'Dropdown'
+    local Multi = Multi == true
+    local SELECT_ALL = 'Select All'
+
+    -- chế độ nhiều: chèn "Select All" lên đầu danh sách
+    local function Prep(L)
+        L = L or {}
+        if not Multi then return L end
+        local Copy = { SELECT_ALL }
+        for _, V in ipairs(L) do
+            if V ~= SELECT_ALL then Copy[#Copy + 1] = V end
+        end
+        return Copy
+    end
+
+    local List = Prep(List)
+    local Callback = Callback or function() end
+    local DebounceAmount = DebounceAmount or 0.25
+    local Default = Default or nil
+    local SelectedItem = 'None'
+    local Opened = false
+    local Debounce = false
+    local DropdownFunctions = {}
+    local Hovering = false
+    local Selected = {}          -- [tên] = true (chỉ dùng khi Multi)
+
+    Utility:Create('Frame', {
+        Name = Name..'DropdownHolder',
+        Parent = Section,
+        BackgroundColor3 = Theme.PrimaryElementColor,
+        Size = UDim2.new(0, 410, 0, 40)
+    }, {
+        Utility:Create('UICorner', {
+            CornerRadius = UDim.new(0, 5),
+            Name = Name..'DropdownHolderCorner'
+        }),
+        Utility:Create('UIStroke', {
+            Name = Name..'DropdownHolderStroke',
+            ApplyStrokeMode = 'Contextual',
+            Color = Theme.UIStrokeColor,
+            LineJoinMode = 'Round',
+            Thickness = 1
+        }),
+        Utility:Create('TextLabel', {
+            Name = Name..'DropdownText',
+            BackgroundColor3 = Theme.PrimaryElementColor,
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 0, 0, 5),
+            Size = UDim2.new(0, 200, 0, 30),
+            Font = Enum.Font.Gotham,
+            Text = Name,
+            TextColor3 = Theme.PrimaryTextColor,
+            TextSize = 16,
+            TextXAlignment = Enum.TextXAlignment.Left
+        }, {
+            Utility:Create('UIPadding', {
+                Name = Name..'DropdownTextPadding',
+                PaddingLeft = UDim.new(0, 7)
+            })
+        }),
+        Utility:Create('ImageLabel', {
+            Name = Name..'DropdownIcon',
+            BackgroundColor3 = Theme.PrimaryElementColor,
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Position = UDim2.new(0, 377, 0, 8),
+            Rotation = 270,
+            Size = UDim2.new(0, 25, 0, 25),
+            Image = 'rbxassetid://3926305904',
+            ImageColor3 = Theme.SecondaryTextColor,
+            ImageRectOffset = Vector2.new(964, 284),
+            ImageRectSize = Vector2.new(36, 36)
+        }),
+        Utility:Create('TextLabel', {
+            Name = Name..'DropdownSelectedText',
+            BackgroundColor3 = Theme.PrimaryElementColor,
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 199, 0, 8),
+            Size = UDim2.new(0, 176, 0, 25),
+            Font = Enum.Font.Gotham,
+            Text = SelectedItem,
+            TextColor3 = Theme.SecondaryTextColor,
+            TextSize = 14,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            TextXAlignment = Enum.TextXAlignment.Right
+        }, {
+            Utility:Create('UICorner', {
+                CornerRadius = UDim.new(0, 5),
+                Name = Name..'DropdownSelectedTextCorner'
+            }),
+            Utility:Create('UIPadding', {
+                Name = Name..'DropdownSelectedTextPadding',
+                PaddingRight = UDim.new(0, 7)
+            })
+        }),
+        Utility:Create('ScrollingFrame', {
+            Name = Name..'DropList',
+            Active = true,
+            BackgroundColor3 = Theme.PrimaryElementColor,
+            BorderSizePixel = 0,
+            Position = UDim2.new(0, 0, 1, 0),
+            Size = UDim2.new(0, 410, 0, 30),
+            Visible = false,
+            ScrollBarImageColor3 = Theme.ScrollBarColor,
+            ScrollBarThickness = 3
+        }, {
+            Utility:Create('UIStroke', {
+                Name = Name..'DropListStroke',
+                ApplyStrokeMode = 'Contextual',
+                Color = Theme.UIStrokeColor,
+                LineJoinMode = 'Round',
+                Thickness = 1
+            }),
+            Utility:Create('UIListLayout', {
+                Name = Name..'DropListLayout',
+                SortOrder = Enum.SortOrder.LayoutOrder
+            }),
+            Utility:Create('UICorner', {
+                CornerRadius = UDim.new(0, 5),
+                Name = Name..'DropdownListCorner'
+            })
+        }),
+        Utility:Create('TextButton', {
+            Name = Name..'DropdownButton',
+            BackgroundColor3 = Theme.PrimaryElementColor,
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Position = UDim2.new(0, 0, 0, 0),
+            Size = UDim2.new(0, 410, 0, 40),
+            Font = Enum.Font.SourceSans,
+            Text = '',
+            TextColor3 = Color3.fromRGB(0, 0, 0),
+            TextSize = 14
+        }, {
+            Utility:Create('UICorner', {
+                CornerRadius = UDim.new(0, 5),
+                Name = Name..'DropdownButtonCorner'
+            })
+        })
+    })
+    Utility:Create('Frame', {
+        Name = Name..'DropdownFiller',
+        Parent = Section,
+        Visible = false,
+        BackgroundTransparency = 1,
+        Size = UDim2.new(0, 410, 0, 0)
+    })
+
+    local DropdownHolder = Section[Name..'DropdownHolder']
+    local DropList = DropdownHolder[Name..'DropList']
+    local DropdownButton = DropdownHolder[Name..'DropdownButton']
+    local DropdownIcon = DropdownHolder[Name..'DropdownIcon']
+    local DropdownSelectedText = DropdownHolder[Name..'DropdownSelectedText']
+    local DropListLayout = DropList[Name..'DropListLayout']
+    local DropdownFiller = Section[Name..'DropdownFiller']
+
+    UpdateSectionSize()
+
+    Config[Name] = Default
+
+    -- ===== helper cho chế độ chọn nhiều =====
+    local function SelectedList()
+        local Out = {}
+        for _, V in ipairs(List) do
+            if V ~= SELECT_ALL and Selected[V] then Out[#Out + 1] = V end
+        end
+        return Out
+    end
+
+    local function IsOn(Item)
+        if not Multi then return false end
+        if Item == SELECT_ALL then
+            local Count = 0
+            for _, V in ipairs(List) do
+                if V ~= SELECT_ALL and Selected[V] then Count += 1 end
+            end
+            return Count > 0 and Count == #List - 1
+        end
+        return Selected[Item] == true
+    end
+
+    -- đổi màu chữ (sáng + đậm nếu đang chọn) và cập nhật ô tóm tắt
+    local function RefreshMulti()
+        for _, B in next, DropList:GetChildren() do
+            if B:IsA('TextButton') then
+                local On = IsOn(B.Text)
+                B.TextColor3 = On and Theme.PrimaryTextColor or Theme.SecondaryTextColor
+                B.Font = On and Enum.Font.SourceSansBold or Enum.Font.SourceSans
+            end
+        end
+        local Chosen = SelectedList()
+        local Total = #List - 1
+        if #Chosen == 0 then
+            DropdownSelectedText.Text = 'None'
+        elseif Total > 0 and #Chosen == Total then
+            DropdownSelectedText.Text = 'All'
+        elseif #Chosen <= 2 then
+            DropdownSelectedText.Text = table.concat(Chosen, ', ')
+        else
+            DropdownSelectedText.Text = #Chosen..' selected'
+        end
+        return Chosen
+    end
+
+    local function MultiPick(Item)
+        if Item == SELECT_ALL then
+            local AllOn = IsOn(SELECT_ALL)
+            Selected = {}
+            if not AllOn then
+                for _, V in ipairs(List) do
+                    if V ~= SELECT_ALL then Selected[V] = true end
+                end
+            end
+        else
+            Selected[Item] = (not Selected[Item]) or nil
+        end
+        local Chosen = RefreshMulti()
+        Config[Name] = Chosen
+        task.spawn(function()
+            Callback(Chosen)
+        end)
+    end
+
+    local function LoadSelection(Value)
+        Selected = {}
+        if type(Value) == 'table' then
+            for K, V in pairs(Value) do
+                if type(K) == 'number' then
+                    if V ~= SELECT_ALL then Selected[V] = true end
+                elseif V and K ~= SELECT_ALL then
+                    Selected[K] = true
+                end
+            end
+        end
+    end
+    -- ========================================
+
+    if not ImprovePerformance then
+        task.spawn(function()
+            while task.wait() do
+                if ChangeTheme then
+                    if not BreakAllLoops then
+                        if not Hovering then
+                            Utility:Tween(DropdownHolder, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
+                        end
+                        Utility:Tween(DropdownHolder[Name..'DropdownHolderStroke'], {Color = Theme.UIStrokeColor}, 0.25)
+                        Utility:Tween(DropdownHolder[Name..'DropdownText'], {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
+                        Utility:Tween(DropdownHolder[Name..'DropdownText'], {TextColor3 = Theme.PrimaryTextColor}, 0.25)
+                        Utility:Tween(DropdownIcon, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
+                        Utility:Tween(DropdownIcon, {ImageColor3 = Theme.SecondaryTextColor}, 0.25)
+                        Utility:Tween(DropdownSelectedText, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
+                        Utility:Tween(DropdownSelectedText, {TextColor3 = Theme.SecondaryTextColor}, 0.25)
+                        Utility:Tween(DropList, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
+                        Utility:Tween(DropList, {ScrollBarImageColor3 = Theme.ScrollBarColor}, 0.25)
+                        Utility:Tween(DropList[Name..'DropListStroke'], {Color = Theme.UIStrokeColor}, 0.25)
+                        Utility:Tween(DropdownButton, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
+                    else
+                        break
                     end
                 end
-                return DropdownFunctions
             end
+        end)
+    end
+
+    DropdownButton.MouseButton1Click:Connect(function()
+        if DropdownDelay > 0 then task.wait(DropdownDelay) end
+        if not Debounce then
+            if Opened then
+                Opened = false
+                Utility:Tween(DropdownFiller, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
+                Utility:Tween(DropList, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
+                Utility:Tween(DropdownIcon, {Rotation = 270}, 0.25)
+                if #List <= 5 then
+                    Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+                    Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+                else
+                    Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, 150)}, 0.25)
+                    Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, 150)}, 0.25)
+                end
+                Debounce = true
+                task.wait(DebounceAmount)
+                Debounce = false
+                DropList.Visible = false
+                DropdownFiller.Visible = false
+            else
+                Opened = true
+                DropdownFiller.Visible = true
+                DropList.Visible = true
+                if #List <= 5 then
+                    Utility:Tween(DropList, {Size = UDim2.new(0, 410, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+                    Utility:Tween(DropdownFiller, {Size = UDim2.new(0, 410, 0, DropListLayout.AbsoluteContentSize.Y - 6)}, 0.25)
+                    Utility:Tween(DropList, {CanvasSize = UDim2.new(0, 400, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+                    Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize + UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+                    Utility:Tween(Section, {Size = Section.Size + UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+                else
+                    Utility:Tween(DropList, {Size = UDim2.new(0, 410, 0, 150)}, 0.25)
+                    Utility:Tween(DropList, {CanvasSize = UDim2.new(0, 400, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+                    Utility:Tween(DropdownFiller, {Size = UDim2.new(0, 410, 0, 144)}, 0.25)
+                    Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize + UDim2.new(0, 0, 0, 150)}, 0.25)
+                    Utility:Tween(Section, {Size = Section.Size + UDim2.new(0, 0, 0, 150)}, 0.25)
+                end
+                Utility:Tween(DropdownIcon, {Rotation = 90}, 0.25)
+                AutoScrollIntoView(DropList)
+                Debounce = true
+                task.wait(DebounceAmount)
+                Debounce = false
+            end
+        end
+    end)
+
+    -- tạo 1 dòng lựa chọn (dùng cho lúc khởi tạo và UpdateDropdown)
+    local function MakeOption(Item)
+        Utility:Create('TextButton', {
+            Name = Item..'OptionButton',
+            Parent = DropList,
+            BackgroundColor3 = Theme.PrimaryElementColor,
+            BorderSizePixel = 0,
+            Size = UDim2.new(0, 410, 0, 30),
+            Font = Enum.Font.SourceSans,
+            TextColor3 = Theme.SecondaryTextColor,
+            TextSize = 16,
+            AutoButtonColor = false,
+            Text = Item,
+            TextXAlignment = Enum.TextXAlignment.Left
+        }, {
+            Utility:Create('UIPadding', {
+                Name = Item..'OptionButtonPadding',
+                PaddingLeft = UDim.new(0, 7)
+            }),
+            Utility:Create('UICorner', {
+                CornerRadius = UDim.new(0, 5),
+                Name = Item..'OptionButtonCorner'
+            })
+        })
+
+        local OptionButton = DropList[Item..'OptionButton']
+
+        if not ImprovePerformance then
+            task.spawn(function()
+                while task.wait() do
+                    if ChangeTheme then
+                        if not BreakAllLoops then
+                            if not Hovering then
+                                Utility:Tween(OptionButton, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
+                            end
+                            -- mục đang chọn (chế độ nhiều) giữ chữ sáng khi đổi theme
+                            Utility:Tween(OptionButton, {TextColor3 = IsOn(Item) and Theme.PrimaryTextColor or Theme.SecondaryTextColor}, 0.25)
+                        else
+                            break
+                        end
+                    end
+                end
+            end)
+        end
+
+        OptionButton.MouseEnter:Connect(function()
+            Hovering = true
+            Utility:Tween(OptionButton, {BackgroundColor3 = Utility:Lighten(Theme.PrimaryElementColor)}, 0.5)
+        end)
+
+        OptionButton.MouseLeave:Connect(function()
+            Utility:Tween(OptionButton, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.5)
+            Hovering = false
+        end)
+
+        OptionButton.MouseButton1Click:Connect(function()
+            if Multi then
+                MultiPick(Item)      -- chọn nhiều: không đóng dropdown
+                return
+            end
+
+            for _, Button in next, DropList:GetChildren() do
+                if Button:IsA('TextButton') then
+                    Utility:Tween(Button, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
+                end
+            end
+            Utility:Tween(OptionButton, {BackgroundColor3 = Utility:Lighten(Theme.PrimaryElementColor)}, 0.25)
+            DropdownSelectedText.Text = tostring(Item)
+            Callback(Item)
+            Config[Name] = Item
+            Opened = false
+            if #List <= 5 then
+                Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+                Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+            else
+                Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, 150)}, 0.25)
+                Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, 150)}, 0.25)
+            end
+            Utility:Tween(DropdownFiller, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
+            Utility:Tween(DropList, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
+            Utility:Tween(DropdownIcon, {Rotation = 270}, 0.25)
+            task.wait(0.25)
+            DropList.Visible = false
+            DropdownFiller.Visible = false
+        end)
+    end
+
+    for _, Item in next, List do
+        MakeOption(Item)
+    end
+
+    if Multi then
+        LoadSelection(Default)               -- Default là mảng tên (hoặc nil)
+        local Chosen = RefreshMulti()
+        Config[Name] = Chosen
+        if #Chosen > 0 then
+            task.spawn(function() Callback(Chosen) end)
+        end
+    elseif Default ~= nil then
+        local Option = DropList[Default..'OptionButton']
+        Utility:Tween(Option, {BackgroundColor3 = Utility:Lighten(Theme.PrimaryElementColor)}, 0.25)
+        DropdownSelectedText.Text = Default
+        Callback(Default)
+    end
+
+    DropdownHolder.MouseEnter:Connect(function()
+        Hovering = true
+        Utility:Tween(DropdownHolder, {BackgroundColor3 = Utility:Lighten(Theme.PrimaryElementColor)}, 0.5)
+    end)
+
+    DropdownHolder.MouseLeave:Connect(function()
+        Utility:Tween(DropdownHolder, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.5)
+        Hovering = false
+    end)
+
+    -- Set: chế độ đơn nhận 1 tên, chế độ nhiều nhận mảng (hoặc bảng {tên = true})
+    function DropdownFunctions:Set(Value)
+        if Multi then
+            LoadSelection(Value)
+            local Chosen = RefreshMulti()
+            Config[Name] = Chosen
+            Callback(Chosen)
+            return
+        end
+        SelectedItem = tostring(Value)
+        DropdownSelectedText.Text = tostring(Value)
+        Callback(Value)
+    end
+    ConfigUpdates[Name] = DropdownFunctions
+
+    function DropdownFunctions:UpdateDropdown(NewList)
+        task.wait(0.25)
+        local NewList = NewList or {}
+        if Opened then
+            Opened = false
+            Utility:Tween(DropdownFiller, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
+            Utility:Tween(DropList, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
+            Utility:Tween(DropdownIcon, {Rotation = 270}, 0.25)
+            if #List <= 5 then
+                Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+                Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, DropListLayout.AbsoluteContentSize.Y)}, 0.25)
+            else
+                Utility:Tween(Tab, {CanvasSize = Tab.CanvasSize - UDim2.new(0, 0, 0, 150)}, 0.25)
+                Utility:Tween(Section, {Size = Section.Size - UDim2.new(0, 0, 0, 150)}, 0.25)
+            end
+            DropList.Visible = false
+            DropdownFiller.Visible = false
+        end
+        task.wait(0.25)
+        for _, Item in next, DropList:GetChildren() do
+            if Item:IsA('TextButton') then
+                Item:Destroy()
+            end
+        end
+        List = Prep(NewList)
+
+        if Multi then
+            for K in pairs(Selected) do
+                if not table.find(List, K) then Selected[K] = nil end
+            end
+        end
+
+        for _, Item in next, List do
+            MakeOption(Item)
+            UpdateSectionSize()
+        end
+
+        if Multi then
+            RefreshMulti()
+        elseif #List == 0 then
+            DropdownSelectedText.Text = 'None'
+            SelectedItem = 'None'
+        end
+    end
+    return DropdownFunctions
+end
+
+
 
             function Elements:CreateColorpicker(Name, DefaultColor, DebounceAmount, Callback, ...)
                 local Name = Name or 'Colorpicker'
@@ -6274,11 +6769,16 @@ end)
                     local Args = table.pack(...)
                     local Opts
                     local Last = Args[Args.n]
-                    if type(Last) == 'table' and (Last.Tooltip ~= nil or Last.Keybind ~= nil) then
-                        Opts = Last
-                        Args[Args.n] = nil
-                        Args.n = Args.n - 1
-                    end
+if type(Last) == 'table' and (Last.Tooltip ~= nil or Last.Keybind ~= nil or Last.Multi ~= nil) then
+    Opts = Last
+    Args[Args.n] = nil
+    Args.n = Args.n - 1
+    if FnName == 'CreateDropdown' and Opts.Multi then
+        Args.n = math.max(Args.n, 5)
+        Args[6] = true          -- bật chế độ chọn nhiều
+        Args.n = 6
+    end
+end
 
                     local Name = tostring(Args[1] or '')
                     -- Keybind = "V"  -> có phím mặc định V
