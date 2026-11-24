@@ -981,87 +981,6 @@ function Library:SetResponse(Hover, Slider, Dropdown)
 end
 
 
--- local ElementTransparency = nil      -- nil = ô chức năng mờ theo slider chung
--- local HolderSuffix = {
---     'ButtonHolder', 'SliderHolder', 'ToggleHolder', 'KeybindHolder', 'TextboxHolder',
---     'TextAreaHolder', 'DropdownHolder', 'ColorpickerHolder', 'SliderGroupHolder', 'LabelHolder'
--- }
--- local function IsElementHolder(Item)
---     if not Item:IsA('Frame') or Item.Name == 'TabButtonHolder' then return false end
---     for _, S in ipairs(HolderSuffix) do
---         if Item.Name:sub(-#S) == S then return true end
---     end
---     return false
--- end
-
--- function Library:SetTransparency(Transparency, NotificationBool)
---     local UI = CoreGui:WaitForChild(UIName)
---     local Blacklist = {
---         'UIPadding',
---         'UICorner',
---         'UIStroke',
---         'UIListLayout',
---         'UIScale',
---         'Folder'
---     }
-
---     -- for _, Item in next, UI:GetDescendants() do
---     --     if not table.find(Blacklist, Item.ClassName) then
---     --         if Item.BackgroundTransparency ~= 1 and Transparency < 0.95 then
---     -- các thành phần KHÔNG bị làm mờ (khớp theo đuôi tên)
---     local ProtectedSuffix = {
---         'Toggle',            -- nút gạt
---         'SliderButton',      -- thanh slider thường
---         'SliderTrail',       -- phần màu của slider
---         'RowTrack',          -- thanh slider trong Slider Group
---         'RowTrail',          -- phần màu của slider trong Slider Group
---         'KeyBox',            -- ô keybind trên toggle
---         'Keybind',           -- ô keybind (CreateKeybind)
---         'Textbox',           -- ô nhập chữ (Notification, Config Name, Image ID...)
---         'TextArea',          -- ô nhập nhiều dòng (Import config / theme)
---         'ColorpickerButton', -- ô xem trước màu
---         'DarknessPicker',    -- thanh chọn độ sáng của bảng màu
---         'RGBPicker'          -- bảng chọn màu
---     }
-
---     local function IsProtected(Item)
---         local N = Item.Name
---         for _, S in ipairs(ProtectedSuffix) do
---             if N:sub(-#S) == S then
---                 return true
---             end
---         end
---         return false
---     end
-
---     for _, Item in next, UI:GetDescendants() do
---         if not table.find(Blacklist, Item.ClassName) and not IsProtected(Item) then
---             if Item.BackgroundTransparency ~= 1 then
---                 local T = math.min(Transparency, 0.95)
---                 if ElementTransparency ~= nil and IsElementHolder(Item) then
---                     T = math.min(ElementTransparency, 0.95)
---                 end
---                 Utility:Tween(Item, {BackgroundTransparency = T}, 0.25)
---             end
---         end
---     end
-
---     if NotificationBool then
---         NotificationTransparency = math.min(Transparency, 0.95)   -- khung prompt không bị tàng hình
---     end
--- end
-
-
--- function Library:SetElementTransparency(Value)
---     ElementTransparency = math.clamp(tonumber(Value) or 0, 0, 1)
---     local UI = CoreGui:FindFirstChild(UIName)
---     if not UI then return end
---     for _, Item in next, UI:GetDescendants() do
---         if IsElementHolder(Item) and Item.BackgroundTransparency ~= 1 then
---             Utility:Tween(Item, {BackgroundTransparency = math.min(ElementTransparency, 0.95)}, 0.25)
---         end
---     end
--- end
 local CurrentTransparency = 0
 local FadeHooked = false
 
@@ -1211,11 +1130,7 @@ function Library:SaveConfig(Name)
                         Library:CreateNotification('Saved Config', 'Successfully saved your config with the name, \''..Name..'.json'..'\'.', 5)
                         NotifyConfigsChanged() 
                     end
-                    -- 'No',
-                    -- function()
-                    --     Library:CreateNotification('Config Not Saved', 'Config was not saved.', 5)
-                    --     NotifyConfigsChanged()
-                    -- end
+                  
                 })
             else
                 local Json = HttpService:JSONEncode(Config)
@@ -3540,12 +3455,16 @@ end
 
         local Sections = {}
 
-        function Sections:CreateSection(Name)
+        -- function Sections:CreateSection(Name)
+        --     local Name = Name or 'Section'
+        function Sections:CreateSection(Name, Holder)
             local Name = Name or 'Section'
+            local Holder = Holder or Tab          -- nếu nằm trong group thì Holder là khung của group
+
             
             Utility:Create('Frame', {
                 Name = Name..'Section',
-                Parent = Tab,
+                Parent = Holder,                     --Parent = Tab,
                 BackgroundColor3 = Theme.BackgroundColor,
                 BorderSizePixel = 0,
                 Size = UDim2.new(0, 410, 0, 30),
@@ -3579,8 +3498,8 @@ end
                 })
             })
 
-            local Section = Tab[Name..'Section']
-
+            -- local Section = Tab[Name..'Section']
+            local Section = Holder[Name..'Section']
             if not ImprovePerformance then
                 task.spawn(function()
                     while task.wait() do
@@ -6511,6 +6430,145 @@ end)
 
             return Elements
         end
+
+        -- ================= GROUP: chia nội dung tab thành 2 cột =================
+        local GROUP_GAP = 4
+        local GROUP_COL_W = (410 - GROUP_GAP) / 2         -- 203px mỗi cột
+        local GROUP_SCALE = GROUP_COL_W / 410             -- ~0.495: thu nhỏ nội dung vừa 1 cột
+        local GroupRow, GroupCols
+        local GroupCount = 0
+
+        local function SyncGroupRow()
+            if not (GroupRow and GroupRow.Parent) then return end
+            local MaxH = 0
+            for _, Col in ipairs(GroupCols) do
+                local H = Col.ColumnScaler.ColLayout.AbsoluteContentSize.Y * GROUP_SCALE
+                Col.Size = UDim2.new(0, GROUP_COL_W, 0, H)
+                MaxH = math.max(MaxH, H)
+            end
+            GroupRow.Size = UDim2.new(0, 410, 0, MaxH)
+        end
+
+        local function EnsureGroupRow()
+            if GroupRow and GroupRow.Parent then return end
+            GroupRow = Utility:Create('Frame', {
+                Name = TabName..'GroupRow',
+                Parent = Tab,
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                Size = UDim2.new(0, 410, 0, 30)
+            })
+            GroupCols = {}
+            for i = 1, 2 do
+                local Col = Utility:Create('Frame', {
+                    Name = (i == 1) and 'LeftColumn' or 'RightColumn',
+                    Parent = GroupRow,
+                    BackgroundTransparency = 1,
+                    BorderSizePixel = 0,
+                    Position = UDim2.new(0, (i - 1) * (GROUP_COL_W + GROUP_GAP), 0, 0),
+                    Size = UDim2.new(0, GROUP_COL_W, 0, 0)
+                }, {
+                    Utility:Create('Frame', {
+                        Name = 'ColumnScaler',
+                        BackgroundTransparency = 1,
+                        BorderSizePixel = 0,
+                        Size = UDim2.new(0, 410, 0, 0)
+                    }, {
+                        Utility:Create('UIScale', { Name = 'ColumnScale', Scale = GROUP_SCALE }),
+                        Utility:Create('UIListLayout', {
+                            Name = 'ColLayout',
+                            Padding = UDim.new(0, 8),
+                            SortOrder = Enum.SortOrder.LayoutOrder
+                        })
+                    })
+                })
+                Col.ColumnScaler.ColLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(SyncGroupRow)
+                GroupCols[i] = Col
+            end
+        end
+
+        -- GroupName: tên hiện trên thanh tiêu đề của group
+        -- Side: 'Left' / 'Right' (bỏ trống: group đầu tiên bên trái, các group sau bên phải xếp chồng)
+        function Sections:CreateGroup(GroupName, Side)
+            local GroupName = GroupName or 'Group'
+            EnsureGroupRow()
+
+            local ColIndex = (Side == 'Left' or (Side == nil and GroupCount == 0)) and 1 or 2
+            GroupCount = GroupCount + 1
+
+            local Group = Utility:Create('Frame', {
+                Name = GroupName..'Group',
+                Parent = GroupCols[ColIndex].ColumnScaler,
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                LayoutOrder = GroupCount,
+                Size = UDim2.new(0, 410, 0, 36)
+            }, {
+                Utility:Create('UIListLayout', {
+                    Name = 'GroupLayout',
+                    HorizontalAlignment = Enum.HorizontalAlignment.Center,
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                    Padding = UDim.new(0, 6)
+                }),
+                Utility:Create('Frame', {
+                    Name = 'GroupTitleBar',
+                    LayoutOrder = -1,
+                    BackgroundColor3 = Theme.SecondaryElementColor,
+                    BorderSizePixel = 0,
+                    Size = UDim2.new(0, 410, 0, 30)
+                }, {
+                    Utility:Create('UICorner', { CornerRadius = UDim.new(0, 5), Name = 'GroupTitleCorner' }),
+                    Utility:Create('UIStroke', {
+                        Name = 'GroupTitleStroke',
+                        ApplyStrokeMode = 'Contextual',
+                        Color = Theme.UIStrokeColor,
+                        Thickness = 1
+                    }),
+                    Utility:Create('TextLabel', {
+                        Name = 'GroupTitleText',
+                        BackgroundTransparency = 1,
+                        Size = UDim2.new(1, 0, 1, 0),
+                        Font = Enum.Font.GothamBold,
+                        Text = GroupName,
+                        TextColor3 = Theme.PrimaryTextColor,
+                        TextSize = 18,
+                        TextXAlignment = Enum.TextXAlignment.Left
+                    }, {
+                        Utility:Create('UIPadding', { Name = 'GroupTitlePadding', PaddingLeft = UDim.new(0, 10) })
+                    })
+                })
+            })
+
+            -- chiều cao group = nội dung bên trong
+            local GroupLayout = Group.GroupLayout
+            local function SyncGroup()
+                Group.Size = UDim2.new(0, 410, 0, GroupLayout.AbsoluteContentSize.Y)
+            end
+            GroupLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(SyncGroup)
+            SyncGroup()
+
+            -- đổi theme thì cập nhật màu thanh tiêu đề
+            task.spawn(function()
+                while Group.Parent and not BreakAllLoops do
+                    pcall(function()
+                        Group.GroupTitleBar.BackgroundColor3 = Theme.SecondaryElementColor
+                        Group.GroupTitleBar.GroupTitleStroke.Color = Theme.UIStrokeColor
+                        Group.GroupTitleBar.GroupTitleText.TextColor3 = Theme.PrimaryTextColor
+                    end)
+                    task.wait(0.5)
+                end
+            end)
+
+            local GroupFunctions = {}
+            function GroupFunctions:CreateSection(Name)
+                return Sections:CreateSection(Name, Group)
+            end
+            return GroupFunctions
+        end
+        -- ================= HẾT GROUP =================
+
+
+
         return Sections
     end
     return Tabs
