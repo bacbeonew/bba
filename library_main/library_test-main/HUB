@@ -1,17 +1,362 @@
+-- DoorsShim.lua
+-- Giả lập API Obsidian (script Abysall cũ) trên UI library mới (BBH | MyHub).
+-- Cách dùng: main script gọi  local Patch = loadstring(<file này>)()
+--            rồi chạy  loadstring(Patch(<source script cũ>))()
 
-local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bacbeonew/library_test/refs/heads/main/libra"))()
+local env = getgenv()
+local UIS = game:GetService("UserInputService")
 
+local RealLib, RealWindow = env.HubLibrary, env.HubWindow
+assert(RealLib and RealWindow, "DoorsShim: thiếu env.HubLibrary / env.HubWindow (set trong main script)")
 
-local x = library:CreateWindow("BacBeo DASHBOARD") 
+local ACCENT = Color3.fromRGB(0, 125, 255)
+local DEFAULT_ICON = "rbxassetid://8772194322"
 
-local b = x:CreateFolder("Thông Tin Game") 
+local Shim = {
+	Toggles = {},
+	Options = {},
+	IsMobile = UIS.TouchEnabled and not UIS.KeyboardEnabled,
+	Scheme = {
+		BackgroundColor = Color3.fromRGB(25, 25, 25),
+		AccentColor = ACCENT,
+		FontColor = Color3.fromRGB(255, 255, 255),
+	},
+}
+setmetatable(Shim, { __index = RealLib }) -- hàm nào shim không có thì lấy từ lib thật
+Shim.Options.MenuKeybind = { Value = "E" }
 
-b:Button("Copy PlaceId (Game ID)", function()
-    local placeId = game.PlaceId
-    setclipboard(tostring(placeId))
-    print("Đã copy PlaceId: " .. placeId)
-end)
+-- ===== Unload =====
+local UnloadCallbacks = {}
+function Shim:OnUnload(Fn)
+	table.insert(UnloadCallbacks, Fn)
+end
+function Shim:Unload()
+	for _, Fn in ipairs(UnloadCallbacks) do
+		pcall(Fn)
+	end
+	table.clear(UnloadCallbacks)
+end
+env.HubDoorsUnload = function()
+	Shim:Unload()
+end
 
+-- ===== Notify (nhận cả Notify("text") lẫn Notify({Title=,Description=,Time=})) =====
+function Shim:Notify(Data, Body, Time)
+	local Title, Text, Duration
+	if type(Data) == "table" then
+		Title = Data.Title or "Notification"
+		Text = Data.Description or Data.Body or ""
+		Duration = type(Data.Time) == "number" and Data.Time or 5
+	else
+		Title = "Notification"
+		Text = tostring(Body or Data or "")
+		Duration = type(Time) == "number" and Time or 5
+	end
+	pcall(function()
+		RealLib:CreateNotification(Title, Text, Duration)
+	end)
+end
 
+-- ===== Tên phần tử phải duy nhất (lib mới tra cứu theo tên) =====
+local Used = {}
+local function Unique(Name)
+	Name = tostring(Name or "")
+	local N = Used[Name] or 0
+	Used[Name] = N + 1
+	return Name .. string.rep(" ", N)
+end
 
---bạn nào không có library thì dùng cái này làm mẫu tham khảo nhé
+local function LabelOf(Info, Idx)
+	local Text = (Info and Info.Text) or Idx or "Option"
+	if Info and Info.Risky then
+		Text = Text .. " (risky)"
+	end
+	return Text
+end
+
+local function TooltipOpts(Info)
+	if Info and type(Info.Tooltip) == "string" and Info.Tooltip ~= "" then
+		return { Tooltip = Info.Tooltip }
+	end
+	return nil
+end
+
+local function Fire(Obj)
+	for _, Fn in ipairs(Obj._cbs) do
+		task.spawn(Fn, Obj.Value)
+	end
+end
+
+-- ===== Groupbox =====
+local function MakeGroupbox(Section)
+	local GB = {}
+
+	function GB:AddDivider() end
+
+	function GB:AddLabel(Text)
+		if type(Text) == "table" then Text = Text.Text end
+		local Real = Section:CreateLabel(Unique(Text or "Label"))
+		local Obj = {}
+		function Obj:SetText(T) Real:UpdateLabel(T) end
+		return Obj
+	end
+
+	function GB:AddButton(A, B)
+		local Info = type(A) == "table" and A or { Text = A, Func = B }
+		local Func = Info.Func or function() end
+		local Callback = Func
+		if Info.DoubleClick then
+			Callback = function()
+				RealLib:CreatePrompt("TwoButton", tostring(Info.Text or "Confirm"), "Are you sure?", {
+					"No", function() end,
+					"Yes", function() Func() end,
+				})
+			end
+		end
+		Section:CreateButton(Unique(LabelOf(Info)), Callback, TooltipOpts(Info))
+		return {}
+	end
+
+	function GB:AddToggle(Idx, Info)
+		Info = Info or {}
+		local Obj = { Value = Info.Default and true or false, Type = "Toggle", _cbs = {} }
+		local Real
+
+		Real = Section:CreateToggle(Unique(LabelOf(Info, Idx)), Obj.Value, ACCENT, 0.25, function(V)
+			Obj.Value = V
+			Fire(Obj)
+		end, TooltipOpts(Info))
+
+		function Obj:OnChanged(Fn) table.insert(Obj._cbs, Fn) end
+		function Obj:SetValue(V)
+			V = V and true or false
+			if V == Obj.Value then return end
+			Real:Set(V)
+		end
+
+		function Obj:AddKeyPicker(KIdx, KInfo)
+			KInfo = KInfo or {}
+			local Pick = { Value = KInfo.Default or "None", Mode = KInfo.Mode, Type = "KeyPicker" }
+			Section:CreateKeybind(Unique((KInfo.Text or Idx) .. " Key"), KInfo.Default or "None", function()
+				Obj:SetValue(not Obj.Value)
+			end)
+			function Pick:GetState() return Obj.Value end
+			function Pick:OnChanged() end
+			function Pick:SetValue(K) Pick.Value = K end
+			Shim.Options[KIdx] = Pick
+			return Pick
+		end
+
+		function Obj:AddColorPicker(CIdx, CInfo)
+			CInfo = CInfo or {}
+			local Pick = { Value = CInfo.Default or Color3.new(1, 1, 1), Type = "ColorPicker", _cbs = {} }
+			Section:CreateColorpicker(Unique(CInfo.Text or CIdx), Pick.Value, 0.25, function(C)
+				Pick.Value = C
+				Fire(Pick)
+			end, { true })
+			function Pick:OnChanged(Fn) table.insert(Pick._cbs, Fn) end
+			function Pick:SetValue(C)
+				Pick.Value = C
+				Fire(Pick)
+			end
+			Shim.Options[CIdx] = Pick
+			return Pick
+		end
+
+		Shim.Toggles[Idx] = Obj
+		return Obj
+	end
+
+	function GB:AddSlider(Idx, Info)
+		Info = Info or {}
+		-- lib mới chỉ có slider số nguyên -> nhân lên rồi chia lại
+		local Rounding = Info.Rounding or 0
+		local Mul = 10 ^ Rounding
+		local function Sc(X) return math.floor(X * Mul + 0.5) end
+
+		local Min, Max = Sc(Info.Min or 0), Sc(Info.Max or 100)
+		local Def = math.clamp(Sc(Info.Default or Info.Min or 0), Min, Max)
+		local Obj = { Value = Def / Mul, Min = Info.Min, Max = Info.Max, Type = "Slider", _cbs = {} }
+
+		local Text = LabelOf(Info, Idx)
+		if Rounding > 0 then
+			Text = Text .. string.format(" (x%d)", Mul)
+		end
+
+		local Real = Section:CreateSlider(Unique(Text), Min, Max, Def, ACCENT, function(V)
+			local N = V / Mul
+			if N == Obj.Value then return end
+			Obj.Value = N
+			Fire(Obj)
+		end, TooltipOpts(Info))
+		Real:Set(Def) -- lib mới không tự vẽ thanh lúc tạo
+
+		function Obj:OnChanged(Fn) table.insert(Obj._cbs, Fn) end
+		function Obj:SetValue(V) Real:Set(Sc(tonumber(V) or 0)) end
+
+		Shim.Options[Idx] = Obj
+		return Obj
+	end
+
+	function GB:AddInput(Idx, Info)
+		Info = Info or {}
+		local Obj = { Value = Info.Default or "", Type = "Input", _cbs = {} }
+		Section:CreateTextbox(Unique(LabelOf(Info, Idx)), Info.Default or Info.Placeholder or "Input", function(T)
+			if T == Obj.Value then return end
+			Obj.Value = T
+			Fire(Obj)
+		end, TooltipOpts(Info))
+		function Obj:OnChanged(Fn) table.insert(Obj._cbs, Fn) end
+		Shim.Options[Idx] = Obj
+		return Obj
+	end
+
+	function GB:AddDropdown(Idx, Info)
+		Info = Info or {}
+		local Values = Info.Values or {}
+		local Multi = Info.Multi
+		local Obj = { Value = Multi and {} or nil, Values = Values, Type = "Dropdown", _cbs = {} }
+		local Guard = false
+		local Real
+
+		local function Summary()
+			local Names = {}
+			for _, V in ipairs(Values) do
+				if Obj.Value[V] then Names[#Names + 1] = V end
+			end
+			if #Names == 0 then return "None" end
+			if #Names <= 2 then return table.concat(Names, ", ") end
+			return #Names .. " selected"
+		end
+
+		local function LoadMulti(Source)
+			Obj.Value = {}
+			if type(Source) == "table" then
+				for K, V in pairs(Source) do
+					if type(K) == "number" then Obj.Value[V] = true
+					elseif V then Obj.Value[K] = true end
+				end
+			end
+		end
+
+		local SingleDefault
+		if Multi then
+			LoadMulti(Info.Default)
+		else
+			local D = Info.Default
+			if type(D) == "number" then D = Values[D] end
+			if D ~= nil and table.find(Values, D) then
+				SingleDefault = D
+				Obj.Value = D
+			end
+		end
+
+		Real = Section:CreateDropdown(Unique(LabelOf(Info, Idx)), Values, SingleDefault, 0.25, function(Item)
+			if Guard then return end
+			if Multi then
+				if not table.find(Values, Item) then return end
+				Obj.Value[Item] = (not Obj.Value[Item]) or nil
+				Guard = true
+				Real:Set(Summary())
+				Guard = false
+				Fire(Obj)
+			else
+				if Obj.Value == Item then return end
+				Obj.Value = Item
+				Fire(Obj)
+			end
+		end, TooltipOpts(Info))
+
+		if Multi then
+			Guard = true
+			Real:Set(Summary())
+			Guard = false
+		end
+
+		function Obj:OnChanged(Fn) table.insert(Obj._cbs, Fn) end
+
+		function Obj:SetValue(V)
+			if Multi then
+				LoadMulti(V)
+				Guard = true
+				Real:Set(Summary())
+				Guard = false
+				Fire(Obj)
+			else
+				if type(V) == "number" then V = Values[V] end
+				if V == nil or V == Obj.Value then return end
+				Real:Set(V)
+			end
+		end
+
+		function Obj:SetValues(List)
+			Values = List or {}
+			Obj.Values = Values
+			task.spawn(function() Real:UpdateDropdown(Values) end)
+		end
+
+		Shim.Options[Idx] = Obj
+		return Obj
+	end
+
+	return GB
+end
+
+local function NewGroupbox(RawTab, Title, Side)
+	local Group = RawTab:CreateGroup(Title, Side)
+	return MakeGroupbox(Group:CreateSection(Title))
+end
+
+local function NewTabbox(RawTab, Title, Side)
+	local TB = {}
+	function TB:AddTab(Name)
+		local GroupTitle = Name
+		if Name == "Settings" then
+			GroupTitle = (Title:match("^[^/]+") or Title):gsub("%s+$", "") .. " Settings"
+		end
+		return NewGroupbox(RawTab, GroupTitle, Side)
+	end
+	return TB
+end
+
+local function MakeTab(RawTab)
+	local Tab = {}
+	function Tab:AddLeftGroupbox(Name) return NewGroupbox(RawTab, Name, "Left") end
+	function Tab:AddRightGroupbox(Name) return NewGroupbox(RawTab, Name, "Right") end
+	function Tab:AddLeftTabbox(Name) return NewTabbox(RawTab, Name, "Left") end
+	function Tab:AddRightTabbox(Name) return NewTabbox(RawTab, Name, "Right") end
+	function Tab:UpdateWarningBox() end
+	return Tab
+end
+
+-- ===== Window (dùng lại Window của main script) =====
+function Shim:CreateWindow()
+	local W = {}
+	function W:AddTab(Name, Icon)
+		local IconId = (type(Icon) == "string" and Icon:find("rbxassetid")) and Icon or DEFAULT_ICON
+		local Raw = RealWindow:CreateTab(Name, false, IconId, Vector2.new(0, 0), Vector2.new(0, 0))
+		return MakeTab(Raw)
+	end
+	return W
+end
+
+env.DoorsShimInterface = {
+	Library = Shim,
+	SaveManager = {},
+	ThemeManager = {},
+	ApplyInfoTab = function() end,
+	ApplySettingsTab = function() end,
+}
+
+-- ===== Patch: đổi dòng load Interface.luau của script cũ sang shim =====
+return function(Source)
+	local Count
+	Source, Count = Source:gsub(
+		'Abysall%.Interface%s*=%s*loadstring%(%s*game:HttpGet%(%s*BaseUrl%s*%.%.%s*"Components/Interface%.luau"%s*%)%s*%)%s*%(%s*%)',
+		function() return "Abysall.Interface = getgenv().DoorsShimInterface" end
+	)
+	if Count == 0 then
+		warn("DoorsShim: không tìm thấy dòng load Interface.luau trong script cũ, hãy sửa tay thành: Abysall.Interface = getgenv().DoorsShimInterface")
+	end
+	return Source
+end
