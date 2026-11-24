@@ -2891,6 +2891,11 @@ end
 
 local function GoToResult(E)
     SearchResults.Visible = false
+    local P = E.Frame.Parent
+    while P and P ~= Container do
+        if P:GetAttribute('IsGroup') then P:SetAttribute('Collapsed', false) end
+        P = P.Parent
+    end    
     local Switch = TabSwitchers[E.Tab]
     if Switch then Switch() end
     task.spawn(function()
@@ -3300,7 +3305,31 @@ end
     end
 
 
+    local BASE_WINDOW_W = 600
+    local WindowWidth = BASE_WINDOW_W
+    local TabWideWidth = {}          -- [TabName] = chiều rộng cửa sổ khi mở tab đó
 
+    local function SetWindowWidth(W)
+        if W == WindowWidth then return end
+        WindowWidth = W
+        local D = W - BASE_WINDOW_W
+        local Time = 0.25
+
+        if not IsMinimized then
+            Utility:Tween(Main, {Size = UDim2.new(0, W, Main.Size.Y.Scale, Main.Size.Y.Offset)}, Time)
+        end
+        FullSize = UDim2.new(0, W, 0, 375)
+
+        Utility:Tween(Main.PromptHolder, {Size = UDim2.new(0, W, 0, 375)}, Time)
+        Utility:Tween(Main.Filler1, {Size = UDim2.new(0, 429 + D, 0, 9)}, Time)
+        Utility:Tween(Main.Filler2, {Size = UDim2.new(0, 429 + D, 0, 11)}, Time)
+        Utility:Tween(Main.TabContainer, {Size = UDim2.new(0, 429 + D, 0, 355)}, Time)
+        for _, TabFrame in ipairs(Main.TabContainer.TabsFolder:GetChildren()) do
+            if TabFrame:IsA('ScrollingFrame') then
+                Utility:Tween(TabFrame, {Size = UDim2.new(0, 428 + D, 0, 365)}, Time)
+            end
+        end
+    end
 
 
 
@@ -3323,7 +3352,7 @@ end
             AutomaticCanvasSize = Enum.AutomaticSize.Y,
             BackgroundColor3 = Theme.BackgroundColor,
             BackgroundTransparency = 1,
-            Size = UDim2.new(0, 428, 0, 365),
+            Size = UDim2.new(0, 428 + (WindowWidth - BASE_WINDOW_W), 0, 365),
             BorderSizePixel = 0,
             ScrollBarImageColor3 = Theme.ScrollBarColor,
             ScrollBarThickness = 3
@@ -3433,6 +3462,7 @@ end
 
         --TabButton.MouseButton1Down:Connect(function()
         local function ShowThisTab()
+                    SetWindowWidth(TabWideWidth[TabName] or BASE_WINDOW_W)
             for _, ITab in next, TabFolder:GetChildren() do
                 ITab.Visible = false
             end
@@ -3515,14 +3545,17 @@ end
                     end
                 end)
             end
-            --thay lúc 10:47
+     
             function UpdateSectionSize()
                 local ContentSize = Section[Name..'ListLayout'].AbsoluteContentSize
+                -- AbsoluteContentSize đã nhân sẵn UIScale (của cả UI và của group), nên chia ngược lại
+                local S = MainScale.Scale * (Holder:GetAttribute('ContentScale') or 1)
+                if S <= 0 then S = 1 end
 
-                Utility:Tween(Section, {Size = UDim2.new(0, ContentSize.X, 0, ContentSize.Y)}, 0.25)
+                Utility:Tween(Section, {Size = UDim2.new(0, ContentSize.X / S, 0, ContentSize.Y / S)}, 0.25)
             end
             
-            --thay lúc 10:47
+           
 
 
 
@@ -6432,31 +6465,44 @@ end)
         end
 
         -- ================= GROUP: chia nội dung tab thành 2 cột =================
-        local GROUP_GAP = 4
-        local GROUP_COL_W = (410 - GROUP_GAP) / 2         -- 203px mỗi cột
-        local GROUP_SCALE = GROUP_COL_W / 410             -- ~0.495: thu nhỏ nội dung vừa 1 cột
+        local GROUP_WINDOW_W = 840                              -- chiều rộng cửa sổ khi mở tab có group (chỉnh ở đây)
+        local GROUP_ROW_W = GROUP_WINDOW_W - 190                -- vùng chứa 2 cột
+        local GROUP_GAP = 8
+        local GROUP_COL_W = (GROUP_ROW_W - GROUP_GAP) / 2       -- mỗi cột
+        local GROUP_SCALE = GROUP_COL_W / 410                   -- hệ số thu nhỏ nội dung vừa 1 cột
+        local GROUP_OPEN_ICON = 'rbxassetid://11552476728'      -- icon khi group đang MỞ
+        local GROUP_CLOSED_ICON = 'rbxassetid://92023845052369' -- icon khi group đã ĐÓNG
+
         local GroupRow, GroupCols
         local GroupCount = 0
 
         local function SyncGroupRow()
             if not (GroupRow and GroupRow.Parent) then return end
+            local S = MainScale.Scale
+            if S <= 0 then S = 1 end
             local MaxH = 0
             for _, Col in ipairs(GroupCols) do
-                local H = Col.ColumnScaler.ColLayout.AbsoluteContentSize.Y * GROUP_SCALE
+                -- AbsoluteContentSize đã gồm UIScale của UI và của cột -> chỉ chia cho UIScale của UI
+                local H = Col.ColumnScaler.ColLayout.AbsoluteContentSize.Y / S
                 Col.Size = UDim2.new(0, GROUP_COL_W, 0, H)
                 MaxH = math.max(MaxH, H)
             end
-            GroupRow.Size = UDim2.new(0, 410, 0, MaxH)
+            GroupRow.Size = UDim2.new(0, GROUP_ROW_W, 0, MaxH)
         end
 
         local function EnsureGroupRow()
             if GroupRow and GroupRow.Parent then return end
+
+            -- tab có group thì cửa sổ rộng hơn
+            TabWideWidth[TabName] = GROUP_WINDOW_W
+            if Tab.Visible then SetWindowWidth(GROUP_WINDOW_W) end
+
             GroupRow = Utility:Create('Frame', {
                 Name = TabName..'GroupRow',
                 Parent = Tab,
                 BackgroundTransparency = 1,
                 BorderSizePixel = 0,
-                Size = UDim2.new(0, 410, 0, 30)
+                Size = UDim2.new(0, GROUP_ROW_W, 0, 30)
             })
             GroupCols = {}
             for i = 1, 2 do
@@ -6477,7 +6523,7 @@ end)
                         Utility:Create('UIScale', { Name = 'ColumnScale', Scale = GROUP_SCALE }),
                         Utility:Create('UIListLayout', {
                             Name = 'ColLayout',
-                            Padding = UDim.new(0, 8),
+                            Padding = UDim.new(0, 10),
                             SortOrder = Enum.SortOrder.LayoutOrder
                         })
                     })
@@ -6487,13 +6533,17 @@ end)
             end
         end
 
-        -- GroupName: tên hiện trên thanh tiêu đề của group
-        -- Side: 'Left' / 'Right' (bỏ trống: group đầu tiên bên trái, các group sau bên phải xếp chồng)
-        function Sections:CreateGroup(GroupName, Side)
+        -- GroupName: tên hiện trên thanh tiêu đề
+        -- Side: 'Left' / 'Right' (bỏ trống: group lẻ bên trái, group chẵn bên phải, xếp chồng)
+        -- StartCollapsed: true nếu muốn group đóng sẵn
+        function Sections:CreateGroup(GroupName, Side, StartCollapsed)
             local GroupName = GroupName or 'Group'
             EnsureGroupRow()
 
-            local ColIndex = (Side == 'Left' or (Side == nil and GroupCount == 0)) and 1 or 2
+            local ColIndex
+            if Side == 'Left' then ColIndex = 1
+            elseif Side == 'Right' then ColIndex = 2
+            else ColIndex = (GroupCount % 2 == 0) and 1 or 2 end
             GroupCount = GroupCount + 1
 
             local Group = Utility:Create('Frame', {
@@ -6515,7 +6565,7 @@ end)
                     LayoutOrder = -1,
                     BackgroundColor3 = Theme.SecondaryElementColor,
                     BorderSizePixel = 0,
-                    Size = UDim2.new(0, 410, 0, 30)
+                    Size = UDim2.new(0, 410, 0, 34)
                 }, {
                     Utility:Create('UICorner', { CornerRadius = UDim.new(0, 5), Name = 'GroupTitleCorner' }),
                     Utility:Create('UIStroke', {
@@ -6527,7 +6577,7 @@ end)
                     Utility:Create('TextLabel', {
                         Name = 'GroupTitleText',
                         BackgroundTransparency = 1,
-                        Size = UDim2.new(1, 0, 1, 0),
+                        Size = UDim2.new(1, -44, 1, 0),
                         Font = Enum.Font.GothamBold,
                         Text = GroupName,
                         TextColor3 = Theme.PrimaryTextColor,
@@ -6535,17 +6585,53 @@ end)
                         TextXAlignment = Enum.TextXAlignment.Left
                     }, {
                         Utility:Create('UIPadding', { Name = 'GroupTitlePadding', PaddingLeft = UDim.new(0, 10) })
+                    }),
+                    Utility:Create('ImageButton', {
+                        Name = 'GroupFoldButton',
+                        AnchorPoint = Vector2.new(1, 0.5),
+                        Position = UDim2.new(1, -8, 0.5, 0),
+                        Size = UDim2.new(0, 24, 0, 24),
+                        BackgroundTransparency = 1,
+                        Image = GROUP_OPEN_ICON,
+                        AutoButtonColor = false
                     })
                 })
             })
 
-            -- chiều cao group = nội dung bên trong
+            Group:SetAttribute('IsGroup', true)
+            Group:SetAttribute('ContentScale', GROUP_SCALE)     -- UpdateSectionSize đọc giá trị này
+            Group:SetAttribute('Collapsed', false)
+
+            -- chiều cao group = nội dung bên trong (đã chia ngược UIScale)
             local GroupLayout = Group.GroupLayout
             local function SyncGroup()
-                Group.Size = UDim2.new(0, 410, 0, GroupLayout.AbsoluteContentSize.Y)
+                local S = MainScale.Scale * GROUP_SCALE
+                if S <= 0 then S = 1 end
+                Group.Size = UDim2.new(0, 410, 0, GroupLayout.AbsoluteContentSize.Y / S)
             end
             GroupLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(SyncGroup)
             SyncGroup()
+
+            -- đóng / mở group
+            local FoldButton = Group.GroupTitleBar.GroupFoldButton
+            local function ApplyCollapsed()
+                local Collapsed = Group:GetAttribute('Collapsed') == true
+                FoldButton.Image = Collapsed and GROUP_CLOSED_ICON or GROUP_OPEN_ICON
+                for _, Child in ipairs(Group:GetChildren()) do
+                    if Child:IsA('GuiObject') and Child.Name ~= 'GroupTitleBar' then
+                        Child.Visible = not Collapsed
+                    end
+                end
+            end
+            Group:GetAttributeChangedSignal('Collapsed'):Connect(ApplyCollapsed)
+            Group.ChildAdded:Connect(function(Child)
+                if Group:GetAttribute('Collapsed') == true and Child:IsA('GuiObject') and Child.Name ~= 'GroupTitleBar' then
+                    Child.Visible = false      -- section tạo thêm khi group đang đóng thì ẩn luôn
+                end
+            end)
+            FoldButton.MouseButton1Click:Connect(function()
+                Group:SetAttribute('Collapsed', not (Group:GetAttribute('Collapsed') == true))
+            end)
 
             -- đổi theme thì cập nhật màu thanh tiêu đề
             task.spawn(function()
@@ -6563,9 +6649,15 @@ end)
             function GroupFunctions:CreateSection(Name)
                 return Sections:CreateSection(Name, Group)
             end
+            function GroupFunctions:SetCollapsed(State)
+                Group:SetAttribute('Collapsed', State and true or false)
+            end
+            if StartCollapsed then
+                task.defer(function() Group:SetAttribute('Collapsed', true) end)
+            end
             return GroupFunctions
         end
-        -- ================= HẾT GROUP =================
+        -- ================= HẾT GROUP =================      
 
 
 
