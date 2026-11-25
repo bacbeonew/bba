@@ -4886,6 +4886,7 @@ end)
                 ToggleButton.MouseButton1Down:Connect(function()
                     if not Debounce then
                         Toggled = not Toggled
+                        Config[Name] = Toggled    
                         task.spawn(function()                    
                             pcall(Callback, Toggled)
                         end)
@@ -4914,6 +4915,7 @@ end)
 
                 function ToggleFunctions:Set(Value)
                     Toggled = Value
+                    Config[Name] = Value  
                     task.spawn(function()
                         pcall(Callback, Toggled)
                     end)
@@ -6906,8 +6908,14 @@ local Con2 = UserInputService.InputEnded:Connect(function(Input)
         task.spawn(function() Result:Set(false) end)
     end
 end)
-Ihatethisui['KB_'..Name] = { Break = function() Con:Disconnect(); Con2:Disconnect() end }
-
+--Ihatethisui['KB_'..Name] = { Break = function() Con:Disconnect(); Con2:Disconnect() end }
+local Con3 = UserInputService.WindowFocusReleased:Connect(function()
+    if IsToggle and Mode == 'Hold' and ToggleState then
+        ToggleState = false
+        task.spawn(function() Result:Set(false) end)
+    end
+end)
+Ihatethisui['KB_'..Name] = { Break = function() Con:Disconnect(); Con2:Disconnect(); Con3:Disconnect() end }
 -- lưu / nạp phím + chế độ theo config
 if IsToggle then
     Config[KeyId] = BindKey
