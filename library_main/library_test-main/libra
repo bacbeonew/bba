@@ -6863,24 +6863,62 @@ end
                             Run = Args[2] or function() end
                         end
 
-                        Library:RegisterKeybind(Name, function() return BindKey end, Run,
-                            IsToggle and function() return ToggleState end or nil)
+                       local Mode = (IsToggle and Opts.Hold) and 'Hold' or 'Toggle'
+local Box                         -- ô phím (tạo bên dưới, chỉ toggle mới có)
+local KeyId, ModeId = Name..'::Key', Name..'::Mode'
 
-                        local Listening = false
+local function KeyText()
+    local K = BindKey ~= '' and BindKey or 'None'
+    if Mode == 'Hold' then K = K .. ' (Hold)' end
+    return K
+end
+local function Commit()           -- cập nhật chữ trên ô + ghi vào Config để Save Config lưu theo
+    if Box then Box.Text = KeyText() end
+    if IsToggle then
+        Config[KeyId] = BindKey
+        Config[ModeId] = Mode
+    end
+end
 
-                        local Con = UserInputService.InputBegan:Connect(function(Input, Processed)
-                            if Processed or Listening or BindKey == '' then return end
-                            if Input.KeyCode.Name == BindKey then
-                                task.spawn(Run)
-                            end
-                        end)
-                        Ihatethisui['KB_'..Name] = { Break = function() Con:Disconnect() end }
+Library:RegisterKeybind(Name, function()
+    if BindKey ~= '' and Mode == 'Hold' then return BindKey .. ' (Hold)' end
+    return BindKey
+end, Run, IsToggle and function() return ToggleState end or nil)
+
+local Con = UserInputService.InputBegan:Connect(function(Input, Processed)
+    if Processed or Listening or BindKey == '' then return end
+    if Input.KeyCode.Name ~= BindKey then return end
+    if IsToggle and Mode == 'Hold' then
+        if not ToggleState then
+            ToggleState = true
+            task.spawn(function() Result:Set(true) end)
+        end
+    else
+        task.spawn(Run)
+    end
+end)
+local Con2 = UserInputService.InputEnded:Connect(function(Input)
+    if not (IsToggle and Mode == 'Hold') or BindKey == '' then return end
+    if Input.KeyCode.Name == BindKey and ToggleState then
+        ToggleState = false
+        task.spawn(function() Result:Set(false) end)
+    end
+end)
+Ihatethisui['KB_'..Name] = { Break = function() Con:Disconnect(); Con2:Disconnect() end }
+
+-- lưu / nạp phím + chế độ theo config
+if IsToggle then
+    Config[KeyId] = BindKey
+    Config[ModeId] = Mode
+    ConfigUpdates[KeyId] = { Set = function(_, V) BindKey = tostring(V or ''); Commit() end }
+    ConfigUpdates[ModeId] = { Set = function(_, V) Mode = (V == 'Hold') and 'Hold' or 'Toggle'; Commit() end }
+end
 
                         -- Ô nhập phím nằm trong dòng toggle (chỉ toggle có Keybind mới có)
                         if IsToggle then
                             local Holder = Section:FindFirstChild(Name..'ToggleHolder')
                             if Holder then
-                                local Box = Utility:Create('TextButton', {
+                                Box = Utility:Create('TextButton', {
                                     Name = Name..'KeyBox',
                                     Parent = Holder,
                                     AnchorPoint = Vector2.new(1, 0.5),
@@ -6890,7 +6928,7 @@ end
                                     BackgroundColor3 = Theme.SecondaryElementColor,
                                     Font = Enum.Font.Gotham,
                                     TextSize = 13,
-                                    Text = BindKey ~= '' and BindKey or 'None',
+                                    Text = KeyText(),
                                     TextColor3 = Theme.SecondaryTextColor,
                                     AutoButtonColor = false,
                                     ZIndex = 5
@@ -6928,10 +6966,18 @@ end
                                         elseif N ~= 'Escape' and N ~= 'Unknown' then
                                             BindKey = N
                                         end
-                                        Box.Text = BindKey ~= '' and BindKey or 'None'
+                                        Commit()
                                         task.delay(0.15, function() Listening = false end)
                                     end)
                                 end)
+
+
+                                Box.MouseButton2Click:Connect(function()          -- chuột phải: đổi Toggle <-> Hold
+    Mode = (Mode == 'Hold') and 'Toggle' or 'Hold'
+    Commit()
+                                end)
+
+
 
                                 task.spawn(function()
                                     while Box.Parent and not BreakAllLoops do
