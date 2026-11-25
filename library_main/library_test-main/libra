@@ -6864,7 +6864,9 @@ end
                         end
 
                        local Mode = (IsToggle and Opts.Hold) and 'Hold' or 'Toggle'
-local Box                         -- ô phím (tạo bên dưới, chỉ toggle mới có)
+
+local Box                         
+local Listening = false           -- THÊM dòng này
 local KeyId, ModeId = Name..'::Key', Name..'::Mode'
 
 local function KeyText()
