@@ -1203,8 +1203,9 @@ function Library:LoadConfig(Name)
                     --     ConfigUpdates[Index]:Set(New)
                     -- else
                     elseif type(Value) == 'table' and type(Value[1]) == 'number' then
-                         local New = Color3.fromRGB(Value[1] * 255, Value[2] * 255, Value[3] * 255)
-                         ConfigUpdates[Index]:Set(New)
+                        -- local New = Color3.fromRGB(Value[1] * 255, Value[2] * 255, Value[3] * 255)
+                        local New = Color3.fromRGB(Value[1], Value[2], Value[3]) 
+                        ConfigUpdates[Index]:Set(New)
                     else
 
                         ConfigUpdates[Index]:Set(Value)
@@ -1352,6 +1353,29 @@ function Library:ExportConfig(Name)
     return Json
 end
 
+-- function Library:ImportConfig(Json, Name)
+--     Name = tostring(Name or ''):gsub('[^%w%-%_ ]', '')
+--     if Name == '' then
+--         Library:CreateNotification('Import Failed', 'Please type a config name first.', 5)
+--         return false
+--     end
+
+--     local Ok, Decoded = pcall(function()
+--         return HttpService:JSONDecode(Json or '')
+--     end)
+--     if not Ok or type(Decoded) ~= 'table' then
+--         Library:CreateNotification('Import Failed', 'The pasted text is not a valid config.', 5)
+--         return false
+--     end
+
+--     if not isfolder(ConfigF) then makefolder(ConfigF) end
+--     writefile(ConfigF..'/'..Name..'.json', HttpService:JSONEncode(Decoded))
+--     Library:CreateNotification('Config Imported', 'Saved as \''..Name..'.json\'.', 5)
+--     NotifyConfigsChanged()
+
+--     Library:LoadConfig(Name)   -- hỏi người dùng có muốn load luôn không
+--     return true
+
 function Library:ImportConfig(Json, Name)
     Name = tostring(Name or ''):gsub('[^%w%-%_ ]', '')
     if Name == '' then
@@ -1368,13 +1392,36 @@ function Library:ImportConfig(Json, Name)
     end
 
     if not isfolder(ConfigF) then makefolder(ConfigF) end
-    writefile(ConfigF..'/'..Name..'.json', HttpService:JSONEncode(Decoded))
-    Library:CreateNotification('Config Imported', 'Saved as \''..Name..'.json\'.', 5)
-    NotifyConfigsChanged()
 
-    Library:LoadConfig(Name)   -- hỏi người dùng có muốn load luôn không
+    local Path = ConfigF..'/'..Name..'.json'
+    local Encoded = HttpService:JSONEncode(Decoded)
+
+    local function Finish()
+        writefile(Path, Encoded)
+        Library:CreateNotification('Config Imported', 'Saved as \''..Name..'.json\'.', 5)
+        NotifyConfigsChanged()
+        -- đợi prompt Overwrite đóng xong (~0.8s) rồi mới hỏi Load, tránh 2 prompt đè nhau
+        task.delay(1, function()
+            Library:LoadConfig(Name)
+        end)
+    end
+
+    if isfile(Path) then
+        Library:CreatePrompt('TwoButton', 'Overwrite Config',
+            'A config named \''..Name..'\' already exists. Overwrite it with the imported config?', {
+            'No',
+            function()
+                Library:CreateNotification('Import Cancelled', 'Existing config was kept.', 5)
+            end,
+            'Yes',
+            Finish
+        })
+    else
+        Finish()
+    end
     return true
 end
+
 
 
 
@@ -6270,7 +6317,8 @@ end
                 end)
                 
                 function ColorpickerFunctions:Set(Value)
-                    local NewColor = Color3.fromRGB(Value.R, Value.G, Value.B)
+                    --local NewColor = Color3.fromRGB(Value.R, Value.G, Value.B)
+                    local NewColor = typeof(Value) == 'Color3' and Value or Color3.fromRGB(Value.R, Value.G, Value.B)
                     local h, s, v = NewColor:ToHSV()
                     Color = {h, s, v}
                     ColorpickerPreview.BackgroundColor3 = NewColor
