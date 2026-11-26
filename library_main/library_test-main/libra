@@ -6592,6 +6592,338 @@ end
                 end
                 return ImageFunctions
             end
+
+
+            -- ===== TOGGLE + BẢNG MÀU (1 dòng) =====
+            -- (Name, Default, DefaultColor, DebounceAmount, Callback(Toggled), ColorCallback(Color3), {Tooltip=...})
+            function Elements:CreateToggleColor(Name, Default, DefaultColor, DebounceAmount, Callback, ColorCallback)
+                local Name = Name or 'Toggle'
+                local Toggled = Default or false
+                local Color = DefaultColor or Color3.fromRGB(0, 125, 255)
+                local Callback = Callback or function() end
+                local ColorCallback = ColorCallback or function() end
+                local DebounceAmount = DebounceAmount or 0.25
+                local OnColor = Color3.fromRGB(0, 255, 100)
+                local Debounce, Opened, Hovering = false, false, false
+                local H, S, V = Color:ToHSV()
+                local Funcs = {}
+
+                local Holder = Utility:Create('Frame', {
+                    Name = Name..'ToggleColorHolder',
+                    Parent = Section,
+                    BackgroundColor3 = Theme.PrimaryElementColor,
+                    Size = UDim2.new(0, 410, 0, 40)
+                }, {
+                    Utility:Create('UICorner', { CornerRadius = UDim.new(0, 5), Name = 'HolderCorner' }),
+                    Utility:Create('UIStroke', {
+                        Name = 'HolderStroke',
+                        ApplyStrokeMode = 'Contextual',
+                        Color = Theme.UIStrokeColor,
+                        LineJoinMode = 'Round',
+                        Thickness = 1
+                    }),
+                    Utility:Create('TextLabel', {
+                        Name = Name..'ToggleColorText',
+                        BackgroundTransparency = 1,
+                        Position = UDim2.new(0, 0, 0, 5),
+                        Size = UDim2.new(0, 300, 0, 30),
+                        Font = Enum.Font.Gotham,
+                        Text = Name,
+                        TextColor3 = Theme.PrimaryTextColor,
+                        TextSize = 16,
+                        TextXAlignment = Enum.TextXAlignment.Left
+                    }, {
+                        Utility:Create('UIPadding', { Name = 'TextPadding', PaddingLeft = UDim.new(0, 7) })
+                    }),
+                    -- nút bấm toàn dòng (nằm dưới ô màu)
+                    Utility:Create('TextButton', {
+                        Name = Name..'ToggleColorButton',
+                        BackgroundTransparency = 1,
+                        BorderSizePixel = 0,
+                        Size = UDim2.new(0, 410, 0, 40),
+                        Text = '',
+                        ZIndex = 1
+                    }),
+                    -- công tắc
+                    Utility:Create('Frame', {
+                        Name = Name..'Toggle',
+                        BackgroundColor3 = Theme.SecondaryElementColor,
+                        Position = UDim2.new(0, 352, 0, 8),
+                        Size = UDim2.new(0, 50, 0, 25)
+                    }, {
+                        Utility:Create('UIStroke', {
+                            Name = 'ToggleStroke',
+                            ApplyStrokeMode = 'Contextual',
+                            Color = Theme.UIStrokeColor,
+                            LineJoinMode = 'Round',
+                            Thickness = 1
+                        }),
+                        Utility:Create('UICorner', { CornerRadius = UDim.new(0, 25), Name = 'ToggleCorner' }),
+                        Utility:Create('ImageLabel', {
+                            Name = 'ToggleCircle',
+                            BackgroundTransparency = 1,
+                            Position = UDim2.new(0, 5, 0, 5),
+                            Size = UDim2.new(0, 15, 0, 15),
+                            Image = 'rbxassetid://3570695787',
+                            ScaleType = Enum.ScaleType.Slice,
+                            SliceCenter = Rect.new(100, 100, 100, 100),
+                            SliceScale = 0.120
+                        })
+                    }),
+                    -- ô xem trước màu (bấm để mở bảng màu)
+                    Utility:Create('TextButton', {
+                        Name = Name..'ColorpickerButton',
+                        BackgroundColor3 = Color,
+                        BorderSizePixel = 0,
+                        Position = UDim2.new(0, 316, 0, 8),
+                        Size = UDim2.new(0, 25, 0, 25),
+                        Text = '',
+                        AutoButtonColor = false,
+                        ZIndex = 3
+                    }, {
+                        Utility:Create('UICorner', { CornerRadius = UDim.new(0, 5), Name = 'PreviewCorner' }),
+                        Utility:Create('UIStroke', {
+                            Name = 'PreviewStroke',
+                            ApplyStrokeMode = 'Border',
+                            Color = Theme.UIStrokeColor,
+                            Thickness = 1
+                        })
+                    }),
+                    -- bảng màu xổ xuống
+                    Utility:Create('Frame', {
+                        Name = Name..'ColorpickerDropdown',
+                        BackgroundColor3 = Theme.PrimaryElementColor,
+                        BorderSizePixel = 0,
+                        Position = UDim2.new(0, 0, 0, 40),
+                        Size = UDim2.new(0, 410, 0, 0),
+                        ClipsDescendants = true,
+                        Visible = false
+                    }, {
+                        Utility:Create('UICorner', { CornerRadius = UDim.new(0, 5), Name = 'DropCorner' }),
+                        Utility:Create('UIStroke', {
+                            Name = 'DropStroke',
+                            ApplyStrokeMode = 'Contextual',
+                            Color = Theme.UIStrokeColor,
+                            LineJoinMode = 'Round',
+                            Thickness = 1
+                        }),
+                        Utility:Create('ImageButton', {
+                            Name = Name..'RGBPicker',
+                            BackgroundColor3 = Theme.PrimaryElementColor,
+                            Position = UDim2.new(0, 38, 0, 7),
+                            Size = UDim2.new(0, 300, 0, 100),
+                            Image = 'rbxassetid://6523286724'
+                        }, {
+                            Utility:Create('UICorner', { CornerRadius = UDim.new(0, 5), Name = 'RGBCorner' }),
+                            Utility:Create('ImageLabel', {
+                                Name = 'RGBCircle',
+                                BackgroundTransparency = 1,
+                                Size = UDim2.new(0, 14, 0, 14),
+                                Image = 'rbxassetid://3926309567',
+                                ImageColor3 = Color3.fromRGB(0, 0, 0),
+                                ImageRectOffset = Vector2.new(628, 420),
+                                ImageRectSize = Vector2.new(48, 48),
+                                ZIndex = 2
+                            })
+                        }),
+                        Utility:Create('ImageButton', {
+                            Name = Name..'DarknessPicker',
+                            BackgroundColor3 = Theme.PrimaryElementColor,
+                            Position = UDim2.new(0, 346, 0, 7),
+                            Size = UDim2.new(0, 25, 0, 100),
+                            Image = 'rbxassetid://6523291212'
+                        }, {
+                            Utility:Create('UICorner', { CornerRadius = UDim.new(0, 5), Name = 'DarkCorner' }),
+                            Utility:Create('ImageLabel', {
+                                Name = 'DarkCircle',
+                                BackgroundTransparency = 1,
+                                AnchorPoint = Vector2.new(0.5, 0),
+                                Size = UDim2.new(0, 14, 0, 14),
+                                Image = 'rbxassetid://3926309567',
+                                ImageColor3 = Color3.fromRGB(0, 0, 0),
+                                ImageRectOffset = Vector2.new(628, 420),
+                                ImageRectSize = Vector2.new(48, 48),
+                                ZIndex = 2
+                            })
+                        })
+                    })
+                })
+
+                local Filler = Utility:Create('Frame', {
+                    Name = Name..'ToggleColorFiller',
+                    Parent = Section,
+                    Visible = false,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(0, 410, 0, 0)
+                })
+
+                local ToggleBtn = Holder[Name..'ToggleColorButton']
+                local Toggle = Holder[Name..'Toggle']
+                local Circle = Toggle.ToggleCircle
+                local Preview = Holder[Name..'ColorpickerButton']
+                local Dropdown = Holder[Name..'ColorpickerDropdown']
+                local RGBPicker = Dropdown[Name..'RGBPicker']
+                local RGBCircle = RGBPicker.RGBCircle
+                local DarkPicker = Dropdown[Name..'DarknessPicker']
+                local DarkCircle = DarkPicker.DarkCircle
+
+                UpdateSectionSize()
+
+                Config[Name] = Toggled
+                Config[Name..'::Color'] = Utility:SplitColor(Color)
+
+                -- ===== hiển thị =====
+                local function Visual(State)
+                    Utility:Tween(Toggle, {BackgroundColor3 = State and OnColor or Theme.SecondaryElementColor}, 0.25)
+                    Utility:Tween(Circle, {Position = UDim2.new(0, State and 30 or 5, 0, 5)}, 0.25)
+                end
+
+                local function Place()
+                    RGBCircle.Position = UDim2.new(1 - H, -7, 1 - S, -7)
+                    DarkCircle.Position = UDim2.new(0.5, 0, 1 - V, -7)
+                    DarkCircle.ImageColor3 = Color3.fromHSV(0, 0, 1 - V)
+                end
+
+                local function Apply(Fire)
+                    Color = Color3.fromHSV(H, S, V)
+                    Preview.BackgroundColor3 = Color
+                    Config[Name..'::Color'] = Utility:SplitColor(Color)
+                    if Fire then task.spawn(pcall, ColorCallback, Color) end
+                end
+
+                Place()
+                Apply(false)
+                if Toggled then
+                    Visual(true)
+                    task.spawn(pcall, Callback, Toggled)
+                end
+                task.spawn(pcall, ColorCallback, Color)
+
+                -- ===== bật / tắt =====
+                ToggleBtn.MouseButton1Down:Connect(function()
+                    if Debounce then return end
+                    Debounce = true
+                    Toggled = not Toggled
+                    Config[Name] = Toggled
+                    task.spawn(pcall, Callback, Toggled)
+                    Visual(Toggled)
+                    task.wait(DebounceAmount)
+                    Debounce = false
+                end)
+
+                -- ===== mở / đóng bảng màu =====
+                local PickerBusy = false
+                Preview.MouseButton1Click:Connect(function()
+                    if PickerBusy then return end
+                    PickerBusy = true
+                    Opened = not Opened
+                    if Opened then
+                        Dropdown.Visible = true
+                        Filler.Visible = true
+                        Utility:Tween(Dropdown, {Size = UDim2.new(0, 410, 0, 114)}, 0.25)
+                        Utility:Tween(Filler, {Size = UDim2.new(0, 410, 0, 108)}, 0.25)
+                        AutoScrollIntoView(Dropdown)
+                    else
+                        Utility:Tween(Dropdown, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
+                        Utility:Tween(Filler, {Size = UDim2.new(0, 410, 0, 0)}, 0.25)
+                    end
+                    task.wait(0.3)
+                    if not Opened then
+                        Dropdown.Visible = false
+                        Filler.Visible = false
+                    end
+                    UpdateSectionSize()
+                    PickerBusy = false
+                end)
+
+                -- ===== kéo chọn màu =====
+                local RGBPicked, DarkPicked = false, false
+
+                local function MousePos()
+                    local Inset = Container.IgnoreGuiInset and Vector2.new(0, 0) or GuiService:GetGuiInset()
+                    local M = UserInputService:GetMouseLocation()
+                    return M.X, M.Y - Inset.Y
+                end
+
+                local function DragMove()
+                    local MX, MY = MousePos()
+                    if RGBPicked then
+                        local X = math.clamp((MX - RGBPicker.AbsolutePosition.X) / RGBPicker.AbsoluteSize.X, 0, 1)
+                        local Y = math.clamp((MY - RGBPicker.AbsolutePosition.Y) / RGBPicker.AbsoluteSize.Y, 0, 1)
+                        H, S = 1 - X, 1 - Y
+                    elseif DarkPicked then
+                        local Y = math.clamp((MY - DarkPicker.AbsolutePosition.Y) / DarkPicker.AbsoluteSize.Y, 0, 1)
+                        V = 1 - Y
+                    else
+                        return
+                    end
+                    Place()
+                    Apply(true)
+                end
+
+                RGBPicker.MouseButton1Down:Connect(function() RGBPicked = true; DragMove() end)
+                DarkPicker.MouseButton1Down:Connect(function() DarkPicked = true; DragMove() end)
+
+                local C1 = UserInputService.InputChanged:Connect(function(Input)
+                    if Input.UserInputType == Enum.UserInputType.MouseMovement then DragMove() end
+                end)
+                local C2 = UserInputService.InputEnded:Connect(function(Input)
+                    if Input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        RGBPicked, DarkPicked = false, false
+                    end
+                end)
+                Ihatethisui['TC_'..Name] = { Break = function() C1:Disconnect(); C2:Disconnect() end }
+
+                -- ===== hover + theme =====
+                Holder.MouseEnter:Connect(function()
+                    Hovering = true
+                    Utility:Tween(Holder, {BackgroundColor3 = Utility:Lighten(Theme.PrimaryElementColor)}, 0.5)
+                end)
+                Holder.MouseLeave:Connect(function()
+                    Hovering = false
+                    Utility:Tween(Holder, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.5)
+                end)
+
+                task.spawn(function()
+                    while Holder.Parent and not BreakAllLoops do
+                        pcall(function()
+                            if not Hovering then Holder.BackgroundColor3 = Theme.PrimaryElementColor end
+                            Holder.HolderStroke.Color = Theme.UIStrokeColor
+                            Holder[Name..'ToggleColorText'].TextColor3 = Theme.PrimaryTextColor
+                            Toggle.ToggleStroke.Color = Theme.UIStrokeColor
+                            if not Toggled then Toggle.BackgroundColor3 = Theme.SecondaryElementColor end
+                            Preview.PreviewStroke.Color = Theme.UIStrokeColor
+                            Dropdown.BackgroundColor3 = Theme.PrimaryElementColor
+                            Dropdown.DropStroke.Color = Theme.UIStrokeColor
+                        end)
+                        task.wait(0.5)
+                    end
+                end)
+
+                -- ===== hàm gọi từ ngoài / Load Config =====
+                function Funcs:Set(Value)
+                    Toggled = Value and true or false
+                    Config[Name] = Toggled
+                    Visual(Toggled)
+                    task.spawn(pcall, Callback, Toggled)
+                end
+                function Funcs:Get() return Toggled end
+                function Funcs:SetColor(Value)
+                    if typeof(Value) ~= 'Color3' then
+                        Value = Color3.fromRGB(Value[1], Value[2], Value[3])
+                    end
+                    H, S, V = Value:ToHSV()
+                    Place()
+                    Apply(true)
+                end
+                function Funcs:GetColor() return Color end
+
+                ConfigUpdates[Name] = Funcs
+                ConfigUpdates[Name..'::Color'] = { Set = function(_, Value) Funcs:SetColor(Value) end }
+                return Funcs
+            end
+            -- ===== HẾT TOGGLE + BẢNG MÀU =====
+
 -----------------------------------
             --             -- ===== Tooltip + Keybind panel (tham số cuối là bảng tùy chọn) =====
             -- local CreateNames = {}
