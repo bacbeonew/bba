@@ -4318,13 +4318,19 @@ end)
                 return SliderFunctions
             end
 
-            function Elements:CreateTextbox(Name, Placeholder, Callback)
+            function Elements:CreateTextbox(Name, Placeholder, Callback, Options)
                 local Name = Name or 'Textbox'
                 local Placeholder = Placeholder or 'Input'
                 local Callback = Callback or function() end
                 local Length = nil
                 local Hovering = false
-
+                local Options = type(Options) == 'table' and Options or {}
+                local Persist = Options.Save == true                 -- ô này có lưu theo config
+                local StartText = Persist and tostring(Options.Default or '') or Placeholder
+                local ClearOnFocus = true
+                if Options.ClearOnFocus ~= nil then ClearOnFocus = Options.ClearOnFocus
+                elseif Persist then ClearOnFocus = false end         -- ô lưu: bấm vào không xóa chữ
+                local TextboxFunctions = {}
                 Utility:Create('Frame', {
                     Name = Name..'TextboxHolder',
                     Parent = Section,
@@ -4368,10 +4374,11 @@ end)
                         Size = UDim2.new(0, 50, 0, 25),
                         Font = Enum.Font.Gotham,
                         PlaceholderColor3 = Theme.SecondaryTextColor,
-                        Text = Placeholder,
+                        Text = StartText,
+                        PlaceholderText = Placeholder,
                         TextColor3 = Theme.SecondaryTextColor,
                         TextSize = 14,
-                        ClearTextOnFocus = true
+                        ClearTextOnFocus = ClearOnFocus
                     }, {
                         Utility:Create('UIStroke', {
                             Name = Name..'TextboxStroke',
@@ -4415,8 +4422,7 @@ end)
                     end)
                 end
 
-                local TextSize = TextService:GetTextSize(Placeholder, 14, Enum.Font.Gotham, Vector2.new(410, 40))
-
+                local TextSize = TextService:GetTextSize(StartText ~= '' and StartText or Placeholder, 14, Enum.Font.Gotham, Vector2.new(410, 40))
                 if TextSize.X < 50 then 
                     Utility:Tween(Textbox, {Size = UDim2.new(0, 50, 0, 25)}, 0.25)
                 else
@@ -4432,6 +4438,7 @@ end)
                 Textbox.FocusLost:Connect(function()
                     Utility:Tween(Textbox, {BackgroundColor3 = Theme.SecondaryElementColor}, 0.25)
                     Utility:Tween(TextboxHolder, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
+                    if Persist then Config[Name] = Textbox.Text end
                     task.spawn(function()
                         Callback(Textbox.Text)
                     end)
@@ -4448,7 +4455,7 @@ end)
                     if Property == 'Text' then
                         Utility:Tween(Textbox, {TextColor3 = Theme.PrimaryTextColor}, 0.25)
 
-                        local TextSize = TextService:GetTextSize(Textbox.Text, 14, Enum.Font.Gotham, Vector2.new(410, 40))
+                        local TextSize = TextService:GetTextSize(Textbox.Text ~= '' and Textbox.Text or Placeholder, 14, Enum.Font.Gotham, Vector2.new(410, 40))
 
                         if TextSize.X < 50 then 
                             Utility:Tween(Textbox, {Size = UDim2.new(0, 50, 0, 25)}, 0.25)
@@ -4467,6 +4474,19 @@ end)
                     Utility:Tween(TextboxHolder, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
                     Hovering = false
                 end)
+                            function TextboxFunctions:Get() return Textbox.Text end
+                function TextboxFunctions:Set(Value)
+                    local V = tostring(Value or '')
+                    Textbox.Text = V
+                    if Persist then Config[Name] = V end
+                    task.spawn(Callback, V)
+                end
+
+                if Persist then
+                    Config[Name] = Textbox.Text
+                    ConfigUpdates[Name] = TextboxFunctions     -- Load Config sẽ gọi :Set(giá trị đã lưu)
+                end
+                return TextboxFunctions
             end
 
 
@@ -6873,7 +6893,7 @@ end
                     local Args = table.pack(...)
                     local Opts
                     local Last = Args[Args.n]
-if type(Last) == 'table' and (Last.Tooltip ~= nil or Last.Keybind ~= nil or Last.Multi ~= nil) then
+if type(Last) == 'table' and (Last.Tooltip ~= nil or Last.Keybind ~= nil or Last.Multi ~= nil or Last.Save ~= nil) thenif type(Last) == 'table' and (Last.Tooltip ~= nil or Last.Keybind ~= nil or Last.Multi ~= nil or Last.Save ~= nil) then
     Opts = Last
     Args[Args.n] = nil
     Args.n = Args.n - 1
@@ -6881,6 +6901,11 @@ if type(Last) == 'table' and (Last.Tooltip ~= nil or Last.Keybind ~= nil or Last
         Args.n = math.max(Args.n, 5)
         Args[6] = true          -- bật chế độ chọn nhiều
         Args.n = 6
+    end
+        if FnName == 'CreateTextbox' and Opts.Save ~= nil then
+        Args.n = math.max(Args.n, 3)
+        Args[4] = Opts          -- đưa lại tuỳ chọn cho CreateTextbox
+        Args.n = 4
     end
 end
 
