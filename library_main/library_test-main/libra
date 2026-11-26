@@ -1098,7 +1098,19 @@ end
 
 
 ----------------------------------
+local ConfigIgnore = {}
 
+function Library:IgnoreConfig(Name)      -- khóa này sẽ không được lưu / nạp
+    ConfigIgnore[Name] = true
+end
+
+local function EncodeConfig()
+    local Copy = {}
+    for K, V in next, Config do
+        if not ConfigIgnore[K] then Copy[K] = V end
+    end
+    return HttpService:JSONEncode(Copy)
+end
 
 
 function Library:SaveConfig(Name)
@@ -1114,7 +1126,7 @@ function Library:SaveConfig(Name)
                     
                     'Yes',
                     function()
-                        local Json = HttpService:JSONEncode(Config)
+                        local Json = EncodeConfig()
                         local File = writefile(ConfigF..'/'..Name..'.json', Json)
                         Library:CreateNotification('Saved Config', 'Successfully saved your config with the name, \''..Name..'.json'..'\'.', 5)
                         NotifyConfigsChanged() 
@@ -1125,7 +1137,7 @@ function Library:SaveConfig(Name)
                     -- end
                 })
             else
-                local Json = HttpService:JSONEncode(Config)
+                local Json = EncodeConfig()
                 local File = writefile(ConfigF..'/'..Name..'.json', Json)
                 Library:CreateNotification('Saved Config', 'Successfully saved your config with the name, \''..Name..'.json'..'\'.', 5)
                 NotifyConfigsChanged()
@@ -1143,7 +1155,7 @@ function Library:SaveConfig(Name)
                     
                     'Yes',
                     function()
-                        local Json = HttpService:JSONEncode(Config)
+                        local Json = EncodeConfig()
                         local File = writefile(ConfigF..'/'..Name..'.json', Json)
                         Library:CreateNotification('Saved Config', 'Successfully saved your config with the name, \''..Name..'.json'..'\'.', 5)
                         NotifyConfigsChanged() 
@@ -1151,7 +1163,7 @@ function Library:SaveConfig(Name)
                   
                 })
             else
-                local Json = HttpService:JSONEncode(Config)
+                local Json = EncodeConfig()
                 local File = writefile(ConfigF..'/'..Name..'.json', Json)
                 Library:CreateNotification('Saved Config', 'Successfully saved your config with the name, \''..Name..'.json'..'\'.', 5)
                 NotifyConfigsChanged()
@@ -1177,6 +1189,7 @@ function Library:LoadConfig(Name)
                 local Config = readfile(ConfigF..'/'..Name..'.json')
                 local Table = HttpService:JSONDecode(Config)
                 for Index, Value in next, Table do
+                    if ConfigIgnore[Index] then continue end
                     if Index ~= 'Theme_4z3s4QrUhfqt703FmiAe' and not ConfigUpdates[Index] then continue end
                     if Index == 'Theme_4z3s4QrUhfqt703FmiAe' then
                         local DecodedTheme = HttpService:JSONDecode(Value)
@@ -1221,7 +1234,7 @@ function Library:DeleteConfig(Name)
            
             'Yes',
             function()
-                local Json = HttpService:JSONEncode(Config)
+                local Json = EncodeConfig()
                 local File = delfile(ConfigF..'/'..Name..'.json')
                 Library:CreateNotification('Deleted Config', 'Successfully deleted config with the name, \''..Name..'.json'..'\'.', 5)
                 NotifyConfigsChanged()
@@ -1248,7 +1261,7 @@ end
 --     if not isfolder(ConfigF) then makefolder(ConfigF) end
 
 --     local function DoSave()
---         local Json = HttpService:JSONEncode(Config)
+--         local Json = EncodeConfig()
 --         writefile(ConfigF..'/'..Name..'.json', Json)
 --         Library:CreateNotification('Saved Config', 'Successfully saved your config with the name, \''..Name..'.json'..'\'.', 5)
 --         NotifyConfigsChanged()
@@ -1326,7 +1339,7 @@ function Library:ExportConfig(Name)
     if Name and Name ~= '' and isfile(ConfigF..'/'..Name..'.json') then
         Json = readfile(ConfigF..'/'..Name..'.json')
     else
-        Json = HttpService:JSONEncode(Config)   -- không chọn config thì xuất trạng thái UI hiện tại
+        Json = EncodeConfig()   -- không chọn config thì xuất trạng thái UI hiện tại
     end
 
     local Copy = setclipboard or toclipboard
@@ -5835,6 +5848,27 @@ end)
         Callback(Value)
     end
     ConfigUpdates[Name] = DropdownFunctions
+
+    -- đưa dropdown về trạng thái "chưa chọn gì" (không gọi Callback)
+function DropdownFunctions:Reset()
+    SelectedItem = 'None'
+    if Multi then
+        Selected = {}
+        Config[Name] = {}
+        RefreshMulti()
+    else
+        Config[Name] = nil
+        DropdownSelectedText.Text = 'None'
+        for _, B in next, DropList:GetChildren() do
+            if B:IsA('TextButton') then
+                Utility:Tween(B, {BackgroundColor3 = Theme.PrimaryElementColor}, 0.25)
+            end
+        end
+    end
+end
+
+
+
 
     function DropdownFunctions:UpdateDropdown(NewList)
         task.wait(0.25)
