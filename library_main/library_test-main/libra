@@ -6893,7 +6893,9 @@ end
                     local Args = table.pack(...)
                     local Opts
                     local Last = Args[Args.n]
-if type(Last) == 'table' and (Last.Tooltip ~= nil or Last.Keybind ~= nil or Last.Multi ~= nil or Last.Save ~= nil) thenif type(Last) == 'table' and (Last.Tooltip ~= nil or Last.Keybind ~= nil or Last.Multi ~= nil or Last.Save ~= nil) then
+
+
+if type(Last) == 'table' and (Last.Tooltip ~= nil or Last.Keybind ~= nil or Last.Multi ~= nil or Last.Save ~= nil) then
     Opts = Last
     Args[Args.n] = nil
     Args.n = Args.n - 1
