@@ -7827,7 +7827,8 @@ end
         -- GroupName: tên hiện trên thanh tiêu đề
         -- Side: 'Left' / 'Right' (bỏ trống: group lẻ bên trái, group chẵn bên phải, xếp chồng)
         -- StartCollapsed: true nếu muốn group đóng sẵn
-        function Sections:CreateGroup(GroupName, Side, StartCollapsed)
+        --function Sections:CreateGroup(GroupName, Side, StartCollapsed)
+        function Sections:CreateGroup(GroupName, Side, StartCollapsed, Icon, RectOffset, RectSize)
             local GroupName = GroupName or 'Group'
             EnsureGroupRow()
 
@@ -7932,6 +7933,30 @@ end
             Color = Theme.UIStrokeColor,
             Thickness = 1
         }),
+        -- Utility:Create('TextLabel', {
+        --     Name = 'GroupTitleText',
+        --     BackgroundTransparency = 1,
+        --     Size = UDim2.new(1, -44, 1, 0),
+        --     Font = Enum.Font.GothamBold,
+        --     Text = GroupName,
+        --     TextColor3 = Theme.PrimaryTextColor,
+        --     TextSize = 18,
+        --     TextXAlignment = Enum.TextXAlignment.Left
+        -- }, {
+        --     Utility:Create('UIPadding', { Name = 'GroupTitlePadding', PaddingLeft = UDim.new(0, 10) })
+        -- }),
+        Utility:Create('ImageLabel', {
+            Name = 'GroupTitleIcon',
+            BackgroundTransparency = 1,
+            AnchorPoint = Vector2.new(0, 0.5),
+            Position = UDim2.new(0, 8, 0.5, 0),
+            Size = UDim2.new(0, 22, 0, 22),
+            Image = Icon or '',
+            ImageRectOffset = RectOffset or Vector2.new(0, 0),
+            ImageRectSize = RectSize or Vector2.new(0, 0),
+            ScaleType = Enum.ScaleType.Fit,
+            Visible = Icon ~= nil and Icon ~= ''
+        }),
         Utility:Create('TextLabel', {
             Name = 'GroupTitleText',
             BackgroundTransparency = 1,
@@ -7942,8 +7967,12 @@ end
             TextSize = 18,
             TextXAlignment = Enum.TextXAlignment.Left
         }, {
-            Utility:Create('UIPadding', { Name = 'GroupTitlePadding', PaddingLeft = UDim.new(0, 10) })
+            Utility:Create('UIPadding', {
+                Name = 'GroupTitlePadding',
+                PaddingLeft = UDim.new(0, (Icon ~= nil and Icon ~= '') and 36 or 10)
+            })
         }),
+
         Utility:Create('ImageButton', {
             Name = 'GroupFoldButton',
             AnchorPoint = Vector2.new(1, 0.5),
@@ -8006,6 +8035,9 @@ end
                         Group.GroupTitleBar.BackgroundColor3 = Theme.SecondaryElementColor
                         Group.GroupTitleBar.GroupTitleStroke.Color = Theme.UIStrokeColor
                         Group.GroupTitleBar.GroupTitleText.TextColor3 = Theme.PrimaryTextColor
+                        if Icon and Icon ~= '' then
+                            Group.GroupTitleBar.GroupTitleIcon.ImageColor3 = Theme.PrimaryTextColor
+                        end                    
                     end)
                     task.wait(0.5)
                 end
