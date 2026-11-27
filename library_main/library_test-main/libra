@@ -1014,14 +1014,15 @@ function Library:ResetGroupColor()
     GroupBgColor = nil      -- vòng lặp theme sẽ tự trả màu về theo theme
 end
 -- ===== HẾT NỀN GROUP =====
-
--- ===== MÀU Ô NHẬP (KeyBox / Keybind / Textbox / TextArea) =====
+-- ===== MÀU Ô NHẬP (KeyBox / Keybind / Textbox / TextArea / ô phím trong bảng Keybind) =====
 local InputBgColor = nil                                   -- nil = theo theme
 local InputSuffix = { 'KeyBox', 'Keybind', 'Textbox', 'TextArea' }
+local InputExact = { KbKey = true }                        -- ô phím trong bảng Keybind (là TextLabel)
 local InputHooked = setmetatable({}, { __mode = 'k' })
 local InputUIHooked = false
 
 local function IsInputBox(Item)
+    if InputExact[Item.Name] and Item:IsA('GuiObject') then return true end
     if not (Item:IsA('TextBox') or Item:IsA('TextButton')) then return false end
     local N = Item.Name
     for _, S in ipairs(InputSuffix) do
@@ -1031,14 +1032,17 @@ local function IsInputBox(Item)
 end
 
 local function HookInput(Item)
-    if InputHooked[Item] or not IsInputBox(Item) then return end
-    InputHooked[Item] = true
-    -- theme/hover/focus có đổi màu thì tự trả về màu đã chọn
-    Item:GetPropertyChangedSignal('BackgroundColor3'):Connect(function()
-        if InputBgColor and Item.BackgroundColor3 ~= InputBgColor then
-            Item.BackgroundColor3 = InputBgColor
-        end
-    end)
+    if not IsInputBox(Item) then return end
+    if not InputHooked[Item] then
+        InputHooked[Item] = true
+        -- theme/hover/focus có đổi màu thì tự trả về màu đã chọn
+        Item:GetPropertyChangedSignal('BackgroundColor3'):Connect(function()
+            if InputBgColor and Item.BackgroundColor3 ~= InputBgColor then
+                Item.BackgroundColor3 = InputBgColor
+            end
+        end)
+    end
+    -- luôn áp màu mới, kể cả ô đã hook từ trước (đây là chỗ bị lỗi cũ)
     if InputBgColor then Item.BackgroundColor3 = InputBgColor end
 end
 
@@ -1542,6 +1546,153 @@ function Library:GetConfigs()
     end
     return Table
 end
+
+
+-- ===== MY THEMES (lưu / nạp theme riêng) =====
+local ThemeF = 'hello/my themes'      -- đổi đường dẫn ở đây nếu muốn
+local ThemesChangedCallback
+
+function Library:OnThemesChanged(Callback)
+    ThemesChangedCallback = Callback
+end
+
+local function NotifyThemesChanged()
+    if ThemesChangedCallback then task.spawn(ThemesChangedCallback) end
+end
+
+local function EnsureThemeFolder()
+    local Path = ''
+    for Part in ThemeF:gmatch('[^/]+') do
+        Path = (Path == '') and Part or (Path..'/'..Part)
+        if not isfolder(Path) then makefolder(Path) end
+    end
+end
+
+local function CleanName(Raw)
+    local N = tostring(Raw or ''):gsub('[^%w%-%_ ]', '')
+    N = N:gsub('^%s+', ''):gsub('%s+$', '')
+    return N
+end
+
+local function ColorFromTable(V)
+    if type(V) == 'table' and type(V[1]) == 'number' and type(V[2]) == 'number' and type(V[3]) == 'number' then
+        return Color3.fromRGB(math.clamp(V[1], 0, 255), math.clamp(V[2], 0, 255), math.clamp(V[3], 0, 255))
+    end
+end
+
+-- theme lưu gồm: màu theme + màu/độ trong nền group + màu ô nhập (nếu bạn đã chỉnh)
+local function EncodeTheme()
+    local Colors = {}
+    for K, V in next, Library:ReturnTheme() do
+        Colors[K] = Utility:SplitColor(V)
+    end
+    local Data = { Colors = Colors }
+    if GroupBgColor then Data.GroupColor = Utility:SplitColor(GroupBgColor) end
+    if GroupBgT ~= nil then Data.GroupT = GroupBgT end
+    if InputBgColor then Data.InputColor = Utility:SplitColor(InputBgColor) end
+    return HttpService:JSONEncode(Data)
+end
+
+local function ApplyThemeData(Data)
+    local Colors = Data.Colors or Data          -- file theme cũ (chỉ có màu) vẫn nạp được
+    local New, Found = {}, 0
+    for K, Cur in next, Library:ReturnTheme() do
+        local C = ColorFromTable(Colors[K])
+        if C then New[K] = C; Found = Found + 1 else New[K] = Cur end
+    end
+    if Found == 0 then return false end
+
+    Library:ChangeTheme(New)
+
+    local GC = ColorFromTable(Data.GroupColor)
+    if GC then Library:SetGroupColor(GC) else Library:ResetGroupColor() end
+    if type(Data.GroupT) == 'number' then Library:SetGroupTransparency(Data.GroupT) end
+
+    local IC = ColorFromTable(Data.InputColor)
+    if IC then Library:SetInputColor(IC) else Library:ResetInputColor() end
+    return true
+end
+
+function Library:GetMyThemes()
+    local Table = {}
+    if isfolder(ThemeF) then
+        for _, Value in next, listfiles(ThemeF) do
+            local Name = Value:match('([^/\\]+)%.json$')
+            if Name then table.insert(Table, Name) end
+        end
+    end
+    return Table
+end
+
+function Library:SaveTheme(Name)
+    Name = CleanName(Name)
+    if Name == '' then
+        Library:CreateNotification('Theme Not Saved', 'Please enter a name for the theme.', 5)
+        return
+    end
+    EnsureThemeFolder()
+    local Path = ThemeF..'/'..Name..'.json'
+
+    local function DoSave()
+        writefile(Path, EncodeTheme())
+        Library:CreateNotification('Saved Theme', 'Saved as \''..Name..'.json\'.', 5)
+        NotifyThemesChanged()
+    end
+
+    if isfile(Path) then
+        Library:CreatePrompt('TwoButton', 'Overwrite Theme', 'A theme already exists with this name, are you sure you want to overwrite it?', {
+            'No',
+            function() Library:CreateNotification('Theme Not Saved', 'Theme was not saved.', 5) end,
+            'Yes',
+            DoSave
+        })
+    else
+        DoSave()
+    end
+end
+
+function Library:LoadTheme(Name)
+    Name = CleanName(Name)
+    local Path = ThemeF..'/'..Name..'.json'
+    if Name == '' or not isfile(Path) then
+        Library:CreateNotification('Theme Not Loaded', 'Theme doesn\'t exist.', 5)
+        return
+    end
+    Library:CreatePrompt('TwoButton', 'Load Theme', 'Are you sure you want to load this theme?', {
+        'No',
+        function() Library:CreateNotification('Theme Not Loaded', 'Theme was not loaded.', 5) end,
+        'Yes',
+        function()
+            local Ok, Data = pcall(function()
+                return HttpService:JSONDecode(readfile(Path))
+            end)
+            if Ok and type(Data) == 'table' and ApplyThemeData(Data) then
+                Library:CreateNotification('Theme Loaded', 'Loaded \''..Name..'.json\'.', 5)
+            else
+                Library:CreateNotification('Theme Not Loaded', 'The theme file is invalid.', 5)
+            end
+        end
+    })
+end
+
+function Library:DeleteTheme(Name)
+    Name = CleanName(Name)
+    local Path = ThemeF..'/'..Name..'.json'
+    if Name == '' or not isfile(Path) then return end
+    Library:CreatePrompt('TwoButton', 'Delete Theme', 'Are you sure that you want to delete this theme?', {
+        'No',
+        function() Library:CreateNotification('Theme Not Deleted', 'Theme was not deleted.', 5) end,
+        'Yes',
+        function()
+            delfile(Path)
+            Library:CreateNotification('Deleted Theme', 'Deleted \''..Name..'.json\'.', 5)
+            NotifyThemesChanged()
+        end
+    })
+end
+-- ===== HẾT MY THEMES =====
+
+
 ------------------
 
 function Library:CreateWindow(HubName, GameName, IntroText, IntroIcon, ImprovePerformance, ConfigFolder, Theme)
