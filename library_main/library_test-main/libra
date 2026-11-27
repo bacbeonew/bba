@@ -1192,19 +1192,39 @@ end
 
 
 ----------------------------------
+-- local ConfigIgnore = {}
+
+-- function Library:IgnoreConfig(Name)      -- khóa này sẽ không được lưu / nạp
+--     ConfigIgnore[Name] = true
+-- end
+
+-- local function EncodeConfig()
+--     local Copy = {}
+--     for K, V in next, Config do
+--         if not ConfigIgnore[K] then Copy[K] = V end
+--     end
+--     return HttpService:JSONEncode(Copy)
 local ConfigIgnore = {}
+local ConfigScopeOn = true          -- false: các nút tạo ra lúc này sẽ KHÔNG lưu vào config
+local THEME_KEY = 'Theme_4z3s4QrUhfqt703FmiAe'
 
 function Library:IgnoreConfig(Name)      -- khóa này sẽ không được lưu / nạp
     ConfigIgnore[Name] = true
 end
 
+-- Library:SetConfigScope(false) ... tạo các nút giao diện ... Library:SetConfigScope(true)
+function Library:SetConfigScope(On)
+    ConfigScopeOn = On ~= false
+end
+
 local function EncodeConfig()
     local Copy = {}
     for K, V in next, Config do
-        if not ConfigIgnore[K] then Copy[K] = V end
+        if not ConfigIgnore[K] and K ~= THEME_KEY then Copy[K] = V end   -- bỏ màu theme
     end
     return HttpService:JSONEncode(Copy)
 end
+
 
 
 function Library:SaveConfig(Name)
@@ -1284,6 +1304,7 @@ function Library:LoadConfig(Name)
                 local Table = HttpService:JSONDecode(Config)
                 for Index, Value in next, Table do
                     if ConfigIgnore[Index] then continue end
+                    if Index == 'Theme_4z3s4QrUhfqt703FmiAe' then continue end   -- config cũ có theme cũng không đổi theme
                     if Index ~= 'Theme_4z3s4QrUhfqt703FmiAe' and not ConfigUpdates[Index] then continue end
                     if Index == 'Theme_4z3s4QrUhfqt703FmiAe' then
                         local DecodedTheme = HttpService:JSONDecode(Value)
@@ -7513,7 +7534,11 @@ end
                     end
 
                     local Result = Original(Self, table.unpack(Args, 1, Args.n))
-
+                    if not ConfigScopeOn and Name ~= '' then      -- nút tạo trong vùng "không lưu config"
+                        ConfigIgnore[Name] = true
+                        ConfigIgnore[Name..'::Key'] = true
+                        ConfigIgnore[Name..'::Mode'] = true
+                    end
 
 
 
