@@ -1785,7 +1785,113 @@ function Library:DeleteTheme(Name)
 end
 -- ===== HẾT MY THEMES =====
 
+-- ===== AUTO LOAD (theme + config) =====
+local AUTO_THEME_FILE = 'BB/autoload_theme.txt'
 
+local function ReadSmall(Path)
+    if not isfile(Path) then return nil end
+    local Ok, Text = pcall(readfile, Path)
+    if not Ok then return nil end
+    Text = tostring(Text):gsub('^%s+', ''):gsub('%s+$', '')
+    return Text ~= '' and Text or nil
+end
+
+-- ---------- THEME ----------
+function Library:GetAutoLoadTheme()
+    local N = ReadSmall(AUTO_THEME_FILE)
+    if N and isfile(ThemeF..'/'..N..'.json') then return N end
+    return nil
+end
+
+function Library:SetAutoLoadTheme(Name)
+    Name = CleanName(Name)
+    if Name == '' or not isfile(ThemeF..'/'..Name..'.json') then
+        Library:CreateNotification('Auto Load Theme', 'Please select a saved theme first.', 4)
+        return false
+    end
+    EnsureThemeFolder()
+    writefile(AUTO_THEME_FILE, Name)
+    Library:CreateNotification('Auto Load Theme', '\''..Name..'\' will load automatically.', 4)
+    return true
+end
+
+function Library:ClearAutoLoadTheme()
+    if isfile(AUTO_THEME_FILE) then delfile(AUTO_THEME_FILE) end
+    Library:CreateNotification('Auto Load Theme', 'Auto load theme disabled.', 4)
+end
+
+function Library:RunAutoLoadTheme()
+    local N = Library:GetAutoLoadTheme()
+    if not N then return false end
+    local Ok, Data = pcall(function()
+        return HttpService:JSONDecode(readfile(ThemeF..'/'..N..'.json'))
+    end)
+    if Ok and type(Data) == 'table' then
+        return ApplyThemeData(Data)
+    end
+    return false
+end
+
+-- ---------- CONFIG (theo từng game, vì ConfigF khác nhau) ----------
+function Library:GetAutoLoadConfig()
+    if not ConfigF then return nil end
+    local N = ReadSmall(ConfigF..'/_autoload.txt')
+    if N and isfile(ConfigF..'/'..N..'.json') then return N end
+    return nil
+end
+
+function Library:SetAutoLoadConfig(Name)
+    Name = tostring(Name or '')
+    if Name == '' or not isfile(ConfigF..'/'..Name..'.json') then
+        Library:CreateNotification('Auto Load Config', 'Please select a saved config first.', 4)
+        return false
+    end
+    if not isfolder(ConfigF) then makefolder(ConfigF) end
+    writefile(ConfigF..'/_autoload.txt', Name)
+    Library:CreateNotification('Auto Load Config', '\''..Name..'\' will load automatically.', 4)
+    return true
+end
+
+function Library:ClearAutoLoadConfig()
+    if ConfigF and isfile(ConfigF..'/_autoload.txt') then
+        delfile(ConfigF..'/_autoload.txt')
+    end
+    Library:CreateNotification('Auto Load Config', 'Auto load config disabled.', 4)
+end
+
+-- nạp config im lặng (không hỏi Yes/No)
+function Library:RunAutoLoadConfig()
+    local N = Library:GetAutoLoadConfig()
+    if not N then return false end
+    local Ok, Table = pcall(function()
+        return HttpService:JSONDecode(readfile(ConfigF..'/'..N..'.json'))
+    end)
+    if not Ok or type(Table) ~= 'table' then return false end
+
+    for Index, Value in next, Table do
+        if ConfigIgnore[Index] or Index == THEME_KEY or not ConfigUpdates[Index] then continue end
+        pcall(function()
+            if type(Value) == 'table' and type(Value[1]) == 'number' then
+                ConfigUpdates[Index]:Set(Color3.fromRGB(Value[1], Value[2], Value[3]))
+            else
+                ConfigUpdates[Index]:Set(Value)
+            end
+        end)
+    end
+    return true
+end
+
+-- gọi 1 lần ở cuối script: theme trước, config sau
+function Library:RunAutoLoad()
+    local T = Library:RunAutoLoadTheme()
+    local C = Library:RunAutoLoadConfig()
+    if T or C then
+        Library:CreateNotification('Auto Load',
+            (T and ('Theme: '..Library:GetAutoLoadTheme()..'  ') or '')..
+            (C and ('Config: '..Library:GetAutoLoadConfig()) or ''), 5)
+    end
+end
+-- ===== HẾT AUTO LOAD =====
 ------------------
 
 function Library:CreateWindow(HubName, GameName, IntroText, IntroIcon, ImprovePerformance, ConfigFolder, Theme)
