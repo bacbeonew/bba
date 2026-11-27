@@ -989,6 +989,33 @@ local FadeBlacklist = {
     UIListLayout = true, UIScale = true, Folder = true
 }
 
+-- ===== NỀN GROUP =====
+local GroupBgT = nil          -- nil = theo thanh Transparency chung
+local GroupBgColor = nil      -- nil = theo theme
+local GroupFrames = {}
+
+function Library:SetGroupTransparency(Value)
+    GroupBgT = Value ~= nil and math.clamp(tonumber(Value) or 0, 0, 0.95) or nil
+    for _, G in ipairs(GroupFrames) do
+        if G.Parent then
+            G.BackgroundTransparency = GroupBgT or CurrentTransparency
+        end
+    end
+end
+
+function Library:SetGroupColor(Color)
+    GroupBgColor = Color
+    for _, G in ipairs(GroupFrames) do
+        if G.Parent and Color then G.BackgroundColor3 = Color end
+    end
+end
+
+function Library:ResetGroupColor()
+    GroupBgColor = nil      -- vòng lặp theme sẽ tự trả màu về theo theme
+end
+-- ===== HẾT NỀN GROUP =====
+
+
 -- các thành phần KHÔNG bị làm mờ (khớp theo đuôi tên)
 local ProtectedSuffix = {
     'Toggle',            -- nút gạt
@@ -1027,10 +1054,23 @@ local function ResolveT(Item, T)
     return T
 end
 
+-- local function FadeItem(Item, T)
+--     if not Item:IsA('GuiObject') then return end
+--     if FadeBlacklist[Item.ClassName] or IsProtected(Item) then return end
+--     if Item.BackgroundTransparency < 0.999 then          -- khung không nền (=1) thì bỏ qua
+--         Item.BackgroundTransparency = ResolveT(Item, T)
+--     end
+-- end
+
 local function FadeItem(Item, T)
     if not Item:IsA('GuiObject') then return end
+    -- khung nền của group: dùng độ trong riêng nếu có
+    if Item:GetAttribute('IsGroup') and GroupBgT ~= nil then
+        Item.BackgroundTransparency = GroupBgT
+        return
+    end
     if FadeBlacklist[Item.ClassName] or IsProtected(Item) then return end
-    if Item.BackgroundTransparency < 0.999 then          -- khung không nền (=1) thì bỏ qua
+    if Item.BackgroundTransparency < 0.999 then
         Item.BackgroundTransparency = ResolveT(Item, T)
     end
 end
@@ -3613,6 +3653,11 @@ end
 
             -- local Section = Tab[Name..'Section']
             local Section = Holder[Name..'Section']
+            if Holder:GetAttribute('IsGroup') then
+                Section.BackgroundTransparency = 1     -- để thấy nền của group
+            end
+
+
             if not ImprovePerformance then
                 task.spawn(function()
                     while task.wait() do
@@ -7486,7 +7531,10 @@ end
         local GROUP_ROW_W = GROUP_WINDOW_W - 190                -- vùng chứa 2 cột
         local GROUP_GAP = 8
         local GROUP_COL_W = (GROUP_ROW_W - GROUP_GAP) / 2       -- mỗi cột
-        local GROUP_SCALE = GROUP_COL_W / 410                   -- hệ số thu nhỏ nội dung vừa 1 cột
+        --local GROUP_SCALE = GROUP_COL_W / 410                   -- hệ số thu nhỏ nội dung vừa 1 cột
+        local GROUP_PAD = 8                                     -- khoảng đệm giữa viền group và nội dung
+        local GROUP_W = 410 + GROUP_PAD * 2
+        local GROUP_SCALE = GROUP_COL_W / GROUP_W
         local GROUP_OPEN_ICON = 'rbxassetid://11552476728'      -- icon khi group đang MỞ
         local GROUP_CLOSED_ICON = 'rbxassetid://92023845052369' -- icon khi group đã ĐÓNG
 
@@ -7535,7 +7583,7 @@ end
                         Name = 'ColumnScaler',
                         BackgroundTransparency = 1,
                         BorderSizePixel = 0,
-                        Size = UDim2.new(0, 410, 0, 0)
+                        Size = UDim2.new(0, GROUP_W, 0, 0)  
                     }, {
                         Utility:Create('UIScale', { Name = 'ColumnScale', Scale = GROUP_SCALE }),
                         Utility:Create('UIListLayout', {
@@ -7563,69 +7611,142 @@ end
             else ColIndex = (GroupCount % 2 == 0) and 1 or 2 end
             GroupCount = GroupCount + 1
 
+            -- local Group = Utility:Create('Frame', {
+            --     Name = GroupName..'Group',
+            --     Parent = GroupCols[ColIndex].ColumnScaler,
+            --     BackgroundTransparency = 1,
+            --     BorderSizePixel = 0,
+            --     LayoutOrder = GroupCount,
+            --     Size = UDim2.new(0, 410, 0, 36)
+            -- }, {
+            --     Utility:Create('UIListLayout', {
+            --         Name = 'GroupLayout',
+            --         HorizontalAlignment = Enum.HorizontalAlignment.Center,
+            --         SortOrder = Enum.SortOrder.LayoutOrder,
+            --         Padding = UDim.new(0, 6)
+            --     }),
+            --     Utility:Create('Frame', {
+            --         Name = 'GroupTitleBar',
+            --         LayoutOrder = -1,
+            --         BackgroundColor3 = Theme.SecondaryElementColor,
+            --         BorderSizePixel = 0,
+            --         Size = UDim2.new(0, 410, 0, 34)
+            --     }, {
+            --         Utility:Create('UICorner', { CornerRadius = UDim.new(0, 5), Name = 'GroupTitleCorner' }),
+            --         Utility:Create('UIStroke', {
+            --             Name = 'GroupTitleStroke',
+            --             ApplyStrokeMode = 'Contextual',
+            --             Color = Theme.UIStrokeColor,
+            --             Thickness = 1
+            --         }),
+            --         Utility:Create('TextLabel', {
+            --             Name = 'GroupTitleText',
+            --             BackgroundTransparency = 1,
+            --             Size = UDim2.new(1, -44, 1, 0),
+            --             Font = Enum.Font.GothamBold,
+            --             Text = GroupName,
+            --             TextColor3 = Theme.PrimaryTextColor,
+            --             TextSize = 18,
+            --             TextXAlignment = Enum.TextXAlignment.Left
+            --         }, {
+            --             Utility:Create('UIPadding', { Name = 'GroupTitlePadding', PaddingLeft = UDim.new(0, 10) })
+            --         }),
+            --         Utility:Create('ImageButton', {
+            --             Name = 'GroupFoldButton',
+            --             AnchorPoint = Vector2.new(1, 0.5),
+            --             Position = UDim2.new(1, -8, 0.5, 0),
+            --             Size = UDim2.new(0, 24, 0, 24),
+            --             BackgroundTransparency = 1,
+            --             Image = GROUP_OPEN_ICON,
+            --             AutoButtonColor = false
+            --         })
+            --     })
+            -- })
+
             local Group = Utility:Create('Frame', {
-                Name = GroupName..'Group',
-                Parent = GroupCols[ColIndex].ColumnScaler,
-                BackgroundTransparency = 1,
-                BorderSizePixel = 0,
-                LayoutOrder = GroupCount,
-                Size = UDim2.new(0, 410, 0, 36)
-            }, {
-                Utility:Create('UIListLayout', {
-                    Name = 'GroupLayout',
-                    HorizontalAlignment = Enum.HorizontalAlignment.Center,
-                    SortOrder = Enum.SortOrder.LayoutOrder,
-                    Padding = UDim.new(0, 6)
-                }),
-                Utility:Create('Frame', {
-                    Name = 'GroupTitleBar',
-                    LayoutOrder = -1,
-                    BackgroundColor3 = Theme.SecondaryElementColor,
-                    BorderSizePixel = 0,
-                    Size = UDim2.new(0, 410, 0, 34)
-                }, {
-                    Utility:Create('UICorner', { CornerRadius = UDim.new(0, 5), Name = 'GroupTitleCorner' }),
-                    Utility:Create('UIStroke', {
-                        Name = 'GroupTitleStroke',
-                        ApplyStrokeMode = 'Contextual',
-                        Color = Theme.UIStrokeColor,
-                        Thickness = 1
-                    }),
-                    Utility:Create('TextLabel', {
-                        Name = 'GroupTitleText',
-                        BackgroundTransparency = 1,
-                        Size = UDim2.new(1, -44, 1, 0),
-                        Font = Enum.Font.GothamBold,
-                        Text = GroupName,
-                        TextColor3 = Theme.PrimaryTextColor,
-                        TextSize = 18,
-                        TextXAlignment = Enum.TextXAlignment.Left
-                    }, {
-                        Utility:Create('UIPadding', { Name = 'GroupTitlePadding', PaddingLeft = UDim.new(0, 10) })
-                    }),
-                    Utility:Create('ImageButton', {
-                        Name = 'GroupFoldButton',
-                        AnchorPoint = Vector2.new(1, 0.5),
-                        Position = UDim2.new(1, -8, 0.5, 0),
-                        Size = UDim2.new(0, 24, 0, 24),
-                        BackgroundTransparency = 1,
-                        Image = GROUP_OPEN_ICON,
-                        AutoButtonColor = false
-                    })
-                })
-            })
+    Name = GroupName..'Group',
+    Parent = GroupCols[ColIndex].ColumnScaler,
+    BackgroundColor3 = GroupBgColor or Utility:Darken(Theme.BackgroundColor),
+    BackgroundTransparency = GroupBgT or CurrentTransparency,
+    BorderSizePixel = 0,
+    LayoutOrder = GroupCount,
+    Size = UDim2.new(0, GROUP_W, 0, 36 + GROUP_PAD * 2)
+}, {
+    Utility:Create('UICorner', { CornerRadius = UDim.new(0, 6), Name = 'GroupBgCorner' }),
+    Utility:Create('UIStroke', {
+        Name = 'GroupBgStroke',
+        ApplyStrokeMode = 'Border',
+        Color = Theme.UIStrokeColor,
+        Thickness = 1
+    }),
+    Utility:Create('UIPadding', {
+        Name = 'GroupBgPadding',
+        PaddingLeft = UDim.new(0, GROUP_PAD),
+        PaddingRight = UDim.new(0, GROUP_PAD),
+        PaddingTop = UDim.new(0, GROUP_PAD),
+        PaddingBottom = UDim.new(0, GROUP_PAD)
+    }),
+    Utility:Create('UIListLayout', {
+        Name = 'GroupLayout',
+        HorizontalAlignment = Enum.HorizontalAlignment.Center,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, 6)
+    }),
+    Utility:Create('Frame', {
+        Name = 'GroupTitleBar',
+        LayoutOrder = -1,
+        BackgroundColor3 = Theme.SecondaryElementColor,
+        BorderSizePixel = 0,
+        Size = UDim2.new(0, 410, 0, 34)
+    }, {
+        Utility:Create('UICorner', { CornerRadius = UDim.new(0, 5), Name = 'GroupTitleCorner' }),
+        Utility:Create('UIStroke', {
+            Name = 'GroupTitleStroke',
+            ApplyStrokeMode = 'Contextual',
+            Color = Theme.UIStrokeColor,
+            Thickness = 1
+        }),
+        Utility:Create('TextLabel', {
+            Name = 'GroupTitleText',
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, -44, 1, 0),
+            Font = Enum.Font.GothamBold,
+            Text = GroupName,
+            TextColor3 = Theme.PrimaryTextColor,
+            TextSize = 18,
+            TextXAlignment = Enum.TextXAlignment.Left
+        }, {
+            Utility:Create('UIPadding', { Name = 'GroupTitlePadding', PaddingLeft = UDim.new(0, 10) })
+        }),
+        Utility:Create('ImageButton', {
+            Name = 'GroupFoldButton',
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -8, 0.5, 0),
+            Size = UDim2.new(0, 24, 0, 24),
+            BackgroundTransparency = 1,
+            Image = GROUP_OPEN_ICON,
+            AutoButtonColor = false
+        })
+    })
+})
 
             Group:SetAttribute('IsGroup', true)
             Group:SetAttribute('ContentScale', GROUP_SCALE)     -- UpdateSectionSize đọc giá trị này
             Group:SetAttribute('Collapsed', false)
+            table.insert(GroupFrames, Group)
 
             -- chiều cao group = nội dung bên trong (đã chia ngược UIScale)
             local GroupLayout = Group.GroupLayout
+            -- local function SyncGroup()
+            --     local S = MainScale.Scale * GROUP_SCALE
+            --     if S <= 0 then S = 1 end
+            --     Group.Size = UDim2.new(0, 410, 0, GroupLayout.AbsoluteContentSize.Y / S)
+            -- end
             local function SyncGroup()
-                local S = MainScale.Scale * GROUP_SCALE
-                if S <= 0 then S = 1 end
-                Group.Size = UDim2.new(0, 410, 0, GroupLayout.AbsoluteContentSize.Y / S)
-            end
+    local S = MainScale.Scale * GROUP_SCALE
+    if S <= 0 then S = 1 end
+    Group.Size = UDim2.new(0, GROUP_W, 0, GroupLayout.AbsoluteContentSize.Y / S + GROUP_PAD * 2)
+end
             GroupLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(SyncGroup)
             SyncGroup()
 
@@ -7654,6 +7775,8 @@ end
             task.spawn(function()
                 while Group.Parent and not BreakAllLoops do
                     pcall(function()
+                        Group.BackgroundColor3 = GroupBgColor or Utility:Darken(Theme.BackgroundColor)
+                        Group.GroupBgStroke.Color = Theme.UIStrokeColor
                         Group.GroupTitleBar.BackgroundColor3 = Theme.SecondaryElementColor
                         Group.GroupTitleBar.GroupTitleStroke.Color = Theme.UIStrokeColor
                         Group.GroupTitleBar.GroupTitleText.TextColor3 = Theme.PrimaryTextColor
