@@ -1015,7 +1015,57 @@ function Library:ResetGroupColor()
 end
 -- ===== HẾT NỀN GROUP =====
 
+-- ===== MÀU Ô NHẬP (KeyBox / Keybind / Textbox / TextArea) =====
+local InputBgColor = nil                                   -- nil = theo theme
+local InputSuffix = { 'KeyBox', 'Keybind', 'Textbox', 'TextArea' }
+local InputHooked = setmetatable({}, { __mode = 'k' })
+local InputUIHooked = false
 
+local function IsInputBox(Item)
+    if not (Item:IsA('TextBox') or Item:IsA('TextButton')) then return false end
+    local N = Item.Name
+    for _, S in ipairs(InputSuffix) do
+        if N:sub(-#S) == S then return true end
+    end
+    return false
+end
+
+local function HookInput(Item)
+    if InputHooked[Item] or not IsInputBox(Item) then return end
+    InputHooked[Item] = true
+    -- theme/hover/focus có đổi màu thì tự trả về màu đã chọn
+    Item:GetPropertyChangedSignal('BackgroundColor3'):Connect(function()
+        if InputBgColor and Item.BackgroundColor3 ~= InputBgColor then
+            Item.BackgroundColor3 = InputBgColor
+        end
+    end)
+    if InputBgColor then Item.BackgroundColor3 = InputBgColor end
+end
+
+function Library:SetInputColor(Color)
+    InputBgColor = Color
+    local UI = CoreGui:WaitForChild(UIName)
+    for _, Item in next, UI:GetDescendants() do
+        HookInput(Item)
+    end
+    if not InputUIHooked then
+        InputUIHooked = true
+        UI.DescendantAdded:Connect(function(Item)
+            task.defer(function()
+                if Item.Parent then HookInput(Item) end
+            end)
+        end)
+    end
+end
+
+function Library:ResetInputColor()
+    InputBgColor = nil
+    local Default = Library:ReturnTheme().SecondaryElementColor
+    for Item in pairs(InputHooked) do
+        if Item.Parent then Item.BackgroundColor3 = Default end
+    end
+end
+-- ===== HẾT MÀU Ô NHẬP =====
 -- các thành phần KHÔNG bị làm mờ (khớp theo đuôi tên)
 local ProtectedSuffix = {
     'Toggle',            -- nút gạt
