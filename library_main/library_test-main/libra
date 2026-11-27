@@ -1602,6 +1602,20 @@ local function ColorFromTable(V)
 end
 
 -- theme lưu gồm: màu theme + màu/độ trong nền group + màu ô nhập (nếu bạn đã chỉnh)
+-- local function EncodeTheme()
+--     local Colors = {}
+--     for K, V in next, Library:ReturnTheme() do
+--         Colors[K] = Utility:SplitColor(V)
+--     end
+--     local Data = { Colors = Colors }
+--     if GroupBgColor then Data.GroupColor = Utility:SplitColor(GroupBgColor) end
+--     if GroupBgT ~= nil then Data.GroupT = GroupBgT end
+--     if InputBgColor then Data.InputColor = Utility:SplitColor(InputBgColor) end
+--     return HttpService:JSONEncode(Data)
+-- end
+
+
+
 local function EncodeTheme()
     local Colors = {}
     for K, V in next, Library:ReturnTheme() do
@@ -1611,11 +1625,46 @@ local function EncodeTheme()
     if GroupBgColor then Data.GroupColor = Utility:SplitColor(GroupBgColor) end
     if GroupBgT ~= nil then Data.GroupT = GroupBgT end
     if InputBgColor then Data.InputColor = Utility:SplitColor(InputBgColor) end
+
+    -- nền + độ trong
+    Data.Bg = Library:GetBackgroundInfo()
+    Data.Transparency = CurrentTransparency
+    local Panels = {}
+    for K, V in next, PanelT do Panels[K] = V end
+    Data.Panels = Panels
+
     return HttpService:JSONEncode(Data)
 end
 
+
+
+-- local function ApplyThemeData(Data)
+--     local Colors = Data.Colors or Data          -- file theme cũ (chỉ có màu) vẫn nạp được
+--     local New, Found = {}, 0
+--     for K, Cur in next, Library:ReturnTheme() do
+--         local C = ColorFromTable(Colors[K])
+--         if C then New[K] = C; Found = Found + 1 else New[K] = Cur end
+--     end
+--     if Found == 0 then return false end
+
+--     Library:ChangeTheme(New)
+
+--     local GC = ColorFromTable(Data.GroupColor)
+--     if GC then Library:SetGroupColor(GC) else Library:ResetGroupColor() end
+--     if type(Data.GroupT) == 'number' then Library:SetGroupTransparency(Data.GroupT) end
+
+--     local IC = ColorFromTable(Data.InputColor)
+--     if IC then Library:SetInputColor(IC) else Library:ResetInputColor() end
+--     return true
+-- end
+
+local ThemeLoadedCallback
+function Library:OnThemeLoaded(Callback)
+    ThemeLoadedCallback = Callback
+end
+
 local function ApplyThemeData(Data)
-    local Colors = Data.Colors or Data          -- file theme cũ (chỉ có màu) vẫn nạp được
+    local Colors = Data.Colors or Data
     local New, Found = {}, 0
     for K, Cur in next, Library:ReturnTheme() do
         local C = ColorFromTable(Colors[K])
@@ -1631,6 +1680,29 @@ local function ApplyThemeData(Data)
 
     local IC = ColorFromTable(Data.InputColor)
     if IC then Library:SetInputColor(IC) else Library:ResetInputColor() end
+
+    -- nền (file theme cũ không có Bg thì giữ nguyên nền hiện tại)
+    if type(Data.Bg) == 'table' then
+        if Data.Bg.Id and Data.Bg.Id ~= '' then
+            Library:SetBackgroundMode(Data.Bg.Mode)
+            Library:SetBackground(Data.Bg.Id)
+            Library:SetBackgroundSize(Data.Bg.Scale)
+        else
+            Library:RemoveBackground()
+        end
+    end
+
+    -- độ trong: áp sau nền vì SetBackground / RemoveBackground có đặt lại độ trong
+    if type(Data.Transparency) == 'number' then
+        Library:SetTransparency(Data.Transparency, true)
+    end
+    if type(Data.Panels) == 'table' then
+        for K, V in next, Data.Panels do
+            if type(V) == 'number' then Library:SetPanelTransparency(K, V) end
+        end
+    end
+
+    if ThemeLoadedCallback then task.spawn(ThemeLoadedCallback, Data) end
     return true
 end
 
@@ -3554,7 +3626,7 @@ BuildSearchBar()
 
 
     local BackgroundImage
-
+    local BackgroundId        -- ID ảnh nền đang dùng (để lưu vào theme)
     function Library:SetBackground(Id, PanelTransparency)
         local ImageId = tostring(Id or ''):match('%d+')
         if not ImageId then
@@ -3581,7 +3653,7 @@ BuildSearchBar()
         end
 
         BackgroundImage.Image = 'rbxassetid://'..ImageId
-
+        BackgroundId = ImageId
         -- sidebar, tab, nút... là khối màu đặc nên phải làm trong suốt thì mới thấy ảnh
         if PanelTransparency or First then
             Library:SetTransparency(PanelTransparency or 0.35, true)
@@ -3630,13 +3702,15 @@ function Library:SetBackgroundMode(Mode)
 end
 
 
-
+function Library:GetBackgroundInfo()
+    return { Id = BackgroundId or '', Scale = BackgroundScale, Mode = BackgroundMode }
+end
 
 -----------------
 
 
 
-
+        BackgroundId = nil
 
 
 
