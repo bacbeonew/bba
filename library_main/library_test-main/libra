@@ -1570,7 +1570,7 @@ end
 
 
 -- ===== MY THEMES (lưu / nạp theme riêng) =====
-local ThemeF = 'hello/my themes'      -- đổi đường dẫn ở đây nếu muốn
+local ThemeF = 'BB/my themes'      -- đổi đường dẫn ở đây nếu muốn
 local ThemesChangedCallback
 
 function Library:OnThemesChanged(Callback)
