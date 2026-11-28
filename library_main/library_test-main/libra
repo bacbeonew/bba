@@ -339,113 +339,113 @@ do
         return Object
     end
 
-    function Library:CreateNotification(Title, Text, Duration)
-        local Theme = {}
-        local File = readfile('VisualUILibraryCurrentTheme.json')
-        local Table = HttpService:JSONDecode(File)
-        for Index, Value in next, Table do
-            Theme[Index] = Utility:JoinColor(Value)
-        end
+    -- function Library:CreateNotification(Title, Text, Duration)
+    --     local Theme = {}
+    --     local File = readfile('VisualUILibraryCurrentTheme.json')
+    --     local Table = HttpService:JSONDecode(File)
+    --     for Index, Value in next, Table do
+    --         Theme[Index] = Utility:JoinColor(Value)
+    --     end
 
-        task.spawn(function()
-            local Title = Title or 'Title'
-            local Text = Text or 'Text'
-            local Duration = Duration or 5
+    --     task.spawn(function()
+    --         local Title = Title or 'Title'
+    --         local Text = Text or 'Text'
+    --         local Duration = Duration or 5
 
-            if not CoreGui:FindFirstChild('Visual UI Library | .gg/puxxCphTnK | Notifications') then
-                Utility:Create('ScreenGui', {
-                    Name = 'Visual UI Library | .gg/puxxCphTnK | Notifications',
-                    Parent = CoreGui
-                })
-            else
-                Utility:Create('Frame', {
-                    Parent = CoreGui:FindFirstChild('Visual UI Library | .gg/puxxCphTnK | Notifications'),
-                    Name = 'Notification'..tostring(Amount + 1),
-                    BackgroundColor3 = Theme.BackgroundColor,
-                    BorderSizePixel = 0,
-                    Position = UDim2.new(1, 300, 1, -30),
-                    Size = UDim2.new(0, 300, 0, 50),
-                    BackgroundTransparency = NotificationTransparency,
-                    AnchorPoint = Vector2.new(1, 1)
-                }, {
-                    Utility:Create('UICorner', {
-                        CornerRadius = UDim.new(0, 5),
-                        Name = 'NotificationCorner'
-                    }),
-                    Utility:Create('UIStroke', {
-                        Name = 'NotificationStroke',
-                        ApplyStrokeMode = 'Contextual',
-                        Color = Theme.NotificationUIStrokeColor,
-                        LineJoinMode = 'Round',
-                        Thickness = 1
-                    }),
-                    Utility:Create('TextLabel', {
-                        Name = 'NotificationTitle',
-                        BackgroundTransparency = 1,
-                        Position = UDim2.new(0, 0, 0, -1),
-                        Size = UDim2.new(0, 300, 0, 30),
-                        Font = Enum.Font.Gotham,
-                        Text = Title,
-                        TextColor3 = Theme.PrimaryTextColor,
-                        TextSize = 16,
-                        TextXAlignment = Enum.TextXAlignment.Left
-                    }, {
-                        Utility:Create('UIPadding', {
-                            Name = 'NotificationTitlePadding',
-                            PaddingLeft = UDim.new(0, 7)
-                        })
-                    }),
-                    Utility:Create('TextLabel', {
-                        Name = 'NotificationText',
-                        BackgroundTransparency = 1,
-                        Position = UDim2.new(0, 0, 0, 25),
-                        Size = UDim2.new(0, 300, 0, 30),
-                        Font = Enum.Font.Gotham,
-                        Text = Text,
-                        TextWrapped = true,
-                        TextColor3 = Theme.SecondaryTextColor,
-                        TextSize = 14,
-                        TextXAlignment = Enum.TextXAlignment.Left
-                    }, {
-                        Utility:Create('UIPadding', {
-                            Name = 'NotificationTextPadding',
-                            PaddingLeft = UDim.new(0, 7)
-                        })
-                    })
-                })
+    --         if not CoreGui:FindFirstChild('Visual UI Library | .gg/puxxCphTnK | Notifications') then
+    --             Utility:Create('ScreenGui', {
+    --                 Name = 'Visual UI Library | .gg/puxxCphTnK | Notifications',
+    --                 Parent = CoreGui
+    --             })
+    --         else
+    --             Utility:Create('Frame', {
+    --                 Parent = CoreGui:FindFirstChild('Visual UI Library | .gg/puxxCphTnK | Notifications'),
+    --                 Name = 'Notification'..tostring(Amount + 1),
+    --                 BackgroundColor3 = Theme.BackgroundColor,
+    --                 BorderSizePixel = 0,
+    --                 Position = UDim2.new(1, 300, 1, -30),
+    --                 Size = UDim2.new(0, 300, 0, 50),
+    --                 BackgroundTransparency = NotificationTransparency,
+    --                 AnchorPoint = Vector2.new(1, 1)
+    --             }, {
+    --                 Utility:Create('UICorner', {
+    --                     CornerRadius = UDim.new(0, 5),
+    --                     Name = 'NotificationCorner'
+    --                 }),
+    --                 Utility:Create('UIStroke', {
+    --                     Name = 'NotificationStroke',
+    --                     ApplyStrokeMode = 'Contextual',
+    --                     Color = Theme.NotificationUIStrokeColor,
+    --                     LineJoinMode = 'Round',
+    --                     Thickness = 1
+    --                 }),
+    --                 Utility:Create('TextLabel', {
+    --                     Name = 'NotificationTitle',
+    --                     BackgroundTransparency = 1,
+    --                     Position = UDim2.new(0, 0, 0, -1),
+    --                     Size = UDim2.new(0, 300, 0, 30),
+    --                     Font = Enum.Font.Gotham,
+    --                     Text = Title,
+    --                     TextColor3 = Theme.PrimaryTextColor,
+    --                     TextSize = 16,
+    --                     TextXAlignment = Enum.TextXAlignment.Left
+    --                 }, {
+    --                     Utility:Create('UIPadding', {
+    --                         Name = 'NotificationTitlePadding',
+    --                         PaddingLeft = UDim.new(0, 7)
+    --                     })
+    --                 }),
+    --                 Utility:Create('TextLabel', {
+    --                     Name = 'NotificationText',
+    --                     BackgroundTransparency = 1,
+    --                     Position = UDim2.new(0, 0, 0, 25),
+    --                     Size = UDim2.new(0, 300, 0, 30),
+    --                     Font = Enum.Font.Gotham,
+    --                     Text = Text,
+    --                     TextWrapped = true,
+    --                     TextColor3 = Theme.SecondaryTextColor,
+    --                     TextSize = 14,
+    --                     TextXAlignment = Enum.TextXAlignment.Left
+    --                 }, {
+    --                     Utility:Create('UIPadding', {
+    --                         Name = 'NotificationTextPadding',
+    --                         PaddingLeft = UDim.new(0, 7)
+    --                     })
+    --                 })
+    --             })
 
-                Amount = Amount + 1
-                local Holder = CoreGui:FindFirstChild('Visual UI Library | .gg/puxxCphTnK | Notifications')['Notification'..tostring(Amount)]
-                local TitleObj = Holder['NotificationTitle']
-                local TextObj = Holder['NotificationText']
-                local TextSize = TextService:GetTextSize(Text, 14, Enum.Font.Gotham, Vector2.new(300, math.huge))
-                Holder.Size = UDim2.new(0, 300, 0, TextSize.Y + 30)
-                TextObj.Size = UDim2.new(0, 300, 0, TextSize.Y)
-                if Amount > 1 then
-                    local PreviousSizes = 0
-                    for _, Notification in next, Holder.Parent:GetChildren() do
-                        if Notification ~= Holder.Parent['Notification'..tostring(Amount)] then
-                            local AbsoluteY = Notification.AbsoluteSize.Y + 5
-                            PreviousSizes = PreviousSizes + AbsoluteY
-                        end
-                    end
-                    Holder.Position = UDim2.new(1, 300, 1, -30 - PreviousSizes)
-                    Utility:Tween(Holder, {Position = UDim2.new(1, -30, 1, -30 - PreviousSizes)}, 0.5)
-                else
-                    Utility:Tween(Holder, {Position = UDim2.new(1, -30, 1, -30)}, 0.5)
-                end
-                task.wait(Duration - 1)
-                Utility:Tween(Holder, {BackgroundTransparency = 0.8}, 0.25)
-                Utility:Tween(TitleObj, {TextTransparency = 0.5}, 0.25)
-                Utility:Tween(TextObj, {TextTransparency = 0.5}, 0.25)
-                task.wait(0.5)
-                Utility:Tween(Holder, {Position = UDim2.new(1, 300, 1, Holder.Position.Y.Offset)}, 0.5)
-                task.wait(0.5)
-                Holder:Destroy()
-                Amount = Amount - 1
-            end
-        end)
-    end
+    --             Amount = Amount + 1
+    --             local Holder = CoreGui:FindFirstChild('Visual UI Library | .gg/puxxCphTnK | Notifications')['Notification'..tostring(Amount)]
+    --             local TitleObj = Holder['NotificationTitle']
+    --             local TextObj = Holder['NotificationText']
+    --             local TextSize = TextService:GetTextSize(Text, 14, Enum.Font.Gotham, Vector2.new(300, math.huge))
+    --             Holder.Size = UDim2.new(0, 300, 0, TextSize.Y + 30)
+    --             TextObj.Size = UDim2.new(0, 300, 0, TextSize.Y)
+    --             if Amount > 1 then
+    --                 local PreviousSizes = 0
+    --                 for _, Notification in next, Holder.Parent:GetChildren() do
+    --                     if Notification ~= Holder.Parent['Notification'..tostring(Amount)] then
+    --                         local AbsoluteY = Notification.AbsoluteSize.Y + 5
+    --                         PreviousSizes = PreviousSizes + AbsoluteY
+    --                     end
+    --                 end
+    --                 Holder.Position = UDim2.new(1, 300, 1, -30 - PreviousSizes)
+    --                 Utility:Tween(Holder, {Position = UDim2.new(1, -30, 1, -30 - PreviousSizes)}, 0.5)
+    --             else
+    --                 Utility:Tween(Holder, {Position = UDim2.new(1, -30, 1, -30)}, 0.5)
+    --             end
+    --             task.wait(Duration - 1)
+    --             Utility:Tween(Holder, {BackgroundTransparency = 0.8}, 0.25)
+    --             Utility:Tween(TitleObj, {TextTransparency = 0.5}, 0.25)
+    --             Utility:Tween(TextObj, {TextTransparency = 0.5}, 0.25)
+    --             task.wait(0.5)
+    --             Utility:Tween(Holder, {Position = UDim2.new(1, 300, 1, Holder.Position.Y.Offset)}, 0.5)
+    --             task.wait(0.5)
+    --             Holder:Destroy()
+    --             Amount = Amount - 1
+    --         end
+    --     end)
+    -- end
 
     function Library:CreatePrompt(Type, Title, Text, ...)
         local Title = Title or 'Title'
@@ -2495,6 +2495,15 @@ function Library:StartSliderSfx()
     S:Play()
 end
 
+function Library:SliderSfxTick()
+    local S = MakeSliderSound()
+    if not S then return end
+    if not S.IsPlaying then
+        S.TimePosition = 0
+        S:Play()
+    end
+end
+
 function Library:StopSfx(Kind)
     if Kind == 'Slider' then StopSliderSfx() end
 end
@@ -2709,6 +2718,202 @@ function Library:HookSound(FnName, Holder, Name)
     end
 end
 -- ===== HẾT SOUND =====
+
+-- ===== NOTIFICATION (sound + image + vị trí Top/Bottom) =====
+local NOTIFY_GUI = 'BBH | Notifications'
+local NOTIFY_W = 300
+local NOTIFY_MARGIN_X, NOTIFY_MARGIN_Y = 20, 20   -- Top bị đè người chơi/topbar thì tăng MARGIN_Y
+local NotifyPosition = 'Bottom'                    -- 'Bottom' (mặc định) | 'Top'
+local NotifyVolume = 1
+local NotifyCounter = 0
+local NotifyHolder, NotifyLayout
+
+-- Thêm sound noti ở đây: { Name = 'tên hiện trong list', Id = 'id' }
+SfxLists.Notify = {
+    { Name = 'Default',    Id = '8486683243' },
+    { Name = 'Click',      Id = '421058925' },
+    { Name = 'Soft Click', Id = '6895079853' },
+    { Name = 'Classic',    Id = '12221967' },
+}
+SfxSrc.Notify = SfxLists.Notify[1].Id
+SfxLabel.Notify = SfxLists.Notify[1].Name
+
+do -- dọn gui noti của lần chạy trước
+    local Old = CoreGui:FindFirstChild(NOTIFY_GUI)
+    if Old then Old:Destroy() end
+end
+
+local function EnsureNotifyHolder()
+    if NotifyHolder and NotifyHolder.Parent then return NotifyHolder end
+
+    local Gui = Utility:Create('ScreenGui', {
+        Name = NOTIFY_GUI,
+        ResetOnSpawn = false,
+        DisplayOrder = 1000,
+        Parent = CoreGui
+    })
+
+    NotifyHolder = Utility:Create('Frame', {
+        Name = 'Holder',
+        Parent = Gui,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        AnchorPoint = Vector2.new(1, 0),
+        Position = UDim2.new(1, -NOTIFY_MARGIN_X, 0, NOTIFY_MARGIN_Y),
+        Size = UDim2.new(0, NOTIFY_W, 1, -NOTIFY_MARGIN_Y * 2)
+    })
+
+    NotifyLayout = Utility:Create('UIListLayout', {
+        Parent = NotifyHolder,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, 6),
+        HorizontalAlignment = Enum.HorizontalAlignment.Right,
+        VerticalAlignment = NotifyPosition == 'Top' and Enum.VerticalAlignment.Top or Enum.VerticalAlignment.Bottom
+    })
+    return NotifyHolder
+end
+
+function Library:SetNotifyPosition(Mode)
+    NotifyPosition = tostring(Mode):lower():find('top') and 'Top' or 'Bottom'
+    if NotifyLayout and NotifyLayout.Parent then
+        NotifyLayout.VerticalAlignment = NotifyPosition == 'Top' and Enum.VerticalAlignment.Top or Enum.VerticalAlignment.Bottom
+    end
+end
+
+function Library:SetNotifyVolume(Value)
+    NotifyVolume = math.clamp(tonumber(Value) or 1, 0, 10)
+end
+
+local function PlayNotifySfx()
+    local Asset = AssetFor(SfxSrc.Notify)
+    if not Asset then return end          -- chọn 'None' thì không kêu
+    local S = Instance.new('Sound')
+    S.SoundId = Asset
+    S.Volume = NotifyVolume
+    S.Parent = SoundService
+    S.Ended:Connect(function() S:Destroy() end)
+    Debris:AddItem(S, 30)
+    S:Play()
+end
+
+-- Image (tùy chọn): số ID, 'rbxassetid://...' hoặc rbxthumb. Không truyền = không hiện ảnh
+function Library:CreateNotification(Title, Text, Duration, Image)
+    task.spawn(function()
+        Title = tostring(Title or 'Title')
+        Text = tostring(Text or 'Text')
+        Duration = tonumber(Duration) or 5
+
+        local Theme = Themes.Default
+        if Library.ReturnTheme then
+            local Ok, T = pcall(function() return Library:ReturnTheme() end)
+            if Ok and type(T) == 'table' then Theme = T end
+        end
+
+        local ImageId
+        if Image ~= nil and Image ~= '' then
+            local S = tostring(Image)
+            ImageId = S:match('^%d+$') and ('rbxassetid://'..S) or S
+        end
+
+        local ImgSize = 40
+        local LeftPad = ImageId and (10 + ImgSize + 10) or 12
+        local TextW = NOTIFY_W - LeftPad - 10
+        local TextH = TextService:GetTextSize(Text, 14, Enum.Font.Gotham, Vector2.new(TextW, math.huge)).Y
+        local Height = math.max(26 + TextH + 10, ImageId and 60 or 46)
+
+        local Holder = EnsureNotifyHolder()
+        NotifyCounter += 1
+
+        -- Wrapper do layout quản lý, Card bên trong mới trượt vào/ra
+        local Wrapper = Utility:Create('Frame', {
+            Name = 'Notification'..NotifyCounter,
+            Parent = Holder,
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Size = UDim2.new(0, NOTIFY_W, 0, Height),
+            LayoutOrder = (NotifyPosition == 'Top') and NotifyCounter or -NotifyCounter
+        })
+
+        local Card = Utility:Create('Frame', {
+            Name = 'Card',
+            Parent = Wrapper,
+            BackgroundColor3 = Theme.NotificationColor or Theme.BackgroundColor,
+            BackgroundTransparency = NotificationTransparency,
+            BorderSizePixel = 0,
+            Position = UDim2.new(0, NOTIFY_W + 40, 0, 0),
+            Size = UDim2.new(1, 0, 1, 0)
+        }, {
+            Utility:Create('UICorner', { CornerRadius = UDim.new(0, 5) }),
+            Utility:Create('UIStroke', {
+                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+                Color = Theme.NotificationUIStrokeColor or Theme.UIStrokeColor,
+                Thickness = 1
+            }),
+            Utility:Create('TextLabel', {
+                Name = 'NotificationTitle',
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, LeftPad, 0, 6),
+                Size = UDim2.new(0, TextW, 0, 20),
+                Font = Enum.Font.Gotham,
+                Text = Title,
+                TextColor3 = Theme.PrimaryTextColor,
+                TextSize = 16,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                TextXAlignment = Enum.TextXAlignment.Left
+            }),
+            Utility:Create('TextLabel', {
+                Name = 'NotificationText',
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, LeftPad, 0, 26),
+                Size = UDim2.new(0, TextW, 0, TextH),
+                Font = Enum.Font.Gotham,
+                Text = Text,
+                TextColor3 = Theme.SecondaryTextColor,
+                TextSize = 14,
+                TextWrapped = true,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextYAlignment = Enum.TextYAlignment.Top
+            })
+        })
+
+        if ImageId then
+            Utility:Create('ImageLabel', {
+                Name = 'NotificationImage',
+                Parent = Card,
+                BackgroundTransparency = 1,
+                AnchorPoint = Vector2.new(0, 0.5),
+                Position = UDim2.new(0, 10, 0.5, 0),
+                Size = UDim2.new(0, ImgSize, 0, ImgSize),
+                Image = ImageId,
+                ScaleType = Enum.ScaleType.Crop
+            }, {
+                Utility:Create('UICorner', { CornerRadius = UDim.new(0, 6) })
+            })
+        end
+
+        PlayNotifySfx()
+        Utility:Tween(Card, {Position = UDim2.new(0, 0, 0, 0)}, 0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+
+        task.wait(math.max(Duration, 1))
+        if not Wrapper.Parent then return end
+
+        Utility:Tween(Card, {Position = UDim2.new(0, NOTIFY_W + 40, 0, 0)}, 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+        task.wait(0.3)
+        Utility:Tween(Wrapper, {Size = UDim2.new(0, NOTIFY_W, 0, 0)}, 0.2)
+        task.wait(0.2)
+        Wrapper:Destroy()
+    end)
+end
+
+-- unload thì xóa luôn gui noti
+local PrevDestroyUI = Library.DestroyUI
+function Library:DestroyUI()
+    PrevDestroyUI(self)
+    local G = CoreGui:FindFirstChild(NOTIFY_GUI)
+    if G then G:Destroy() end
+    NotifyHolder, NotifyLayout = nil, nil
+end
+-- ===== HẾT NOTIFICATION =====
 ------------------
 
 function Library:CreateWindow(HubName, GameName, IntroText, IntroIcon, ImprovePerformance, ConfigFolder, Theme)
@@ -4520,7 +4725,7 @@ local function BuildSearchBar()
         while SearchBar.Parent and not BreakAllLoops do
             pcall(function()
                 SearchBar.BackgroundColor3 = Theme.BackgroundColor
-                SearchBar.SearchBottomFill.BackgroundColor3 = Theme.BackgroundColor
+                --SearchBar.SearchBottomFill.BackgroundColor3 = Theme.BackgroundColor
                 Bridge.BackgroundColor3 = Theme.BackgroundColor
                 SearchBar.SearchStroke.Color = Theme.UIStrokeColor
                 SearchBox.TextColor3 = Theme.PrimaryTextColor
