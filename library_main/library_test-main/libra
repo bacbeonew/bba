@@ -2244,10 +2244,18 @@ local MUSIC_DIR = 'BB/music'
 local GetAsset = getcustomasset or getsynasset
 
 -- Sound CÓ SẴN của script (list Slider / Button / Toggle chỉ hiện các sound này)
-local BuiltInSfx = {
-    { Name = 'Click', Id = '421058925' },     -- ví dụ: thay bằng ID của bạn
-    { Name = 'Soft Click', Id = '6895079853' },
-    { Name = 'Tick', Id = '9120386436' },
+-- THÊM ID SOUND CỦA BẠN VÀO ĐÂY (mỗi loại 1 list riêng)
+local SfxLists = {
+    Slider = {
+        { Name = 'Slider 1', Id = '421058925' },
+        { Name = 'Slider 2', Id = '134781979035978' },
+        -- { Name = 'tên bạn đặt', Id = 'id của bạn' },
+    },
+    Click = {
+        { Name = 'Click', Id = '421058925' },
+        { Name = 'Soft Click', Id = '6895079853' },
+        { Name = 'classic', Id = '12221967' },
+    },
 }
 
 local SavedSounds = {}
@@ -2261,7 +2269,8 @@ local SoundsChangedCallback
 local SoundCoreReady = false
 local SoundConns = {}
 local AssetCache = {}
-
+local SfxDragging = false
+local SliderStamp = 0
 local function EnsureMusicDir()
     if not isfolder('BB') then makefolder('BB') end
     if not isfolder(MUSIC_DIR) then makefolder(MUSIC_DIR) end
@@ -2321,16 +2330,30 @@ local function AssetFor(Src)
     return Asset
 end
 
-local function ResolveSfx(Label)
+-- local function ResolveSfx(Label)
+--     if not Label or Label == 'None' then return nil end
+--     for _, E in ipairs(BuiltInSfx) do
+--         if E.Name == Label then return E.Id end
+--     end
+--     return nil
+-- end
+
+local function ResolveSfx(Kind, Label)
     if not Label or Label == 'None' then return nil end
-    for _, E in ipairs(BuiltInSfx) do
+    for _, E in ipairs(SfxLists[Kind] or {}) do
         if E.Name == Label then return E.Id end
     end
     return nil
 end
 
+-- local function StopSliderSfx()
+--     if SliderSound and SliderSound.Parent then SliderSound:Stop() end
+-- end
+
 local function StopSliderSfx()
-    if SliderSound and SliderSound.Parent then SliderSound:Stop() end
+    if SliderSound and SliderSound.Parent and SliderSound.IsPlaying then
+        SliderSound:Pause()
+    end
 end
 
 local function CleanupSound()
@@ -2351,12 +2374,21 @@ end
 local function EnsureSoundCore()
     if SoundCoreReady then return end
     SoundCoreReady = true
+    -- table.insert(SoundConns, UserInputService.InputEnded:Connect(function(Input)
+    --     if Input.UserInputType == Enum.UserInputType.MouseButton1
+    --     or Input.UserInputType == Enum.UserInputType.Touch then
+    --         StopSliderSfx()          -- thả chuột ở đâu cũng tắt tiếng slider
+    --     end
+    -- end))
     table.insert(SoundConns, UserInputService.InputEnded:Connect(function(Input)
         if Input.UserInputType == Enum.UserInputType.MouseButton1
         or Input.UserInputType == Enum.UserInputType.Touch then
-            StopSliderSfx()          -- thả chuột ở đâu cũng tắt tiếng slider
+            SfxDragging = false
+            StopSliderSfx()
         end
     end))
+
+
     table.insert(SoundConns, UserInputService.WindowFocusReleased:Connect(StopSliderSfx))
 end
 
@@ -2365,11 +2397,19 @@ function Library:OnSoundsChanged(Callback)
 end
 
 -- ---------- sound có sẵn + hiệu ứng ----------
-function Library:GetBuiltInSfx()
+-- function Library:GetBuiltInSfx()
+--     local L = {}
+--     for _, E in ipairs(BuiltInSfx) do L[#L + 1] = E.Name end
+--     return L
+-- end
+
+function Library:GetBuiltInSfx(Kind)
     local L = {}
-    for _, E in ipairs(BuiltInSfx) do L[#L + 1] = E.Name end
+    for _, E in ipairs(SfxLists[Kind] or {}) do L[#L + 1] = E.Name end
     return L
 end
+
+
 
 local function MakeSliderSound()
     local Asset = AssetFor(SfxSrc.Slider)
@@ -2386,12 +2426,31 @@ local function MakeSliderSound()
 end
 
 -- Kind: 'Slider' | 'Click'
+-- function Library:SetSfx(Kind, Label)
+--     SfxSrc[Kind] = ResolveSfx(Label)
+--     SfxLabel[Kind] = SfxSrc[Kind] and Label or nil
+--     local Asset = AssetFor(SfxSrc[Kind])
+--     if Asset then
+--         -- tải trước để lần kêu đầu không bị trễ / mất tiếng
+--         task.spawn(function()
+--             local S = Kind == 'Slider' and MakeSliderSound() or nil
+--             local Temp
+--             if not S then
+--                 Temp = Instance.new('Sound')
+--                 Temp.SoundId = Asset
+--                 S = Temp
+--             end
+--             pcall(function() ContentProvider:PreloadAsync({ S }) end)
+--             if Temp then Temp:Destroy() end
+--         end)
+--     end
+-- end
+
 function Library:SetSfx(Kind, Label)
-    SfxSrc[Kind] = ResolveSfx(Label)
+    SfxSrc[Kind] = ResolveSfx(Kind, Label)
     SfxLabel[Kind] = SfxSrc[Kind] and Label or nil
     local Asset = AssetFor(SfxSrc[Kind])
     if Asset then
-        -- tải trước để lần kêu đầu không bị trễ / mất tiếng
         task.spawn(function()
             local S = Kind == 'Slider' and MakeSliderSound() or nil
             local Temp
@@ -2465,6 +2524,11 @@ function Library:PlayStartup(Src, Volume)
     S.Parent = SoundService
     S.Ended:Connect(function() S:Destroy() end)
     S:Play()
+    task.delay(4, function()
+        if S.Parent and not S.IsLoaded then
+            Library:CreateNotification('Music', 'Startup music failed to load (bad file / ID).', 5)
+        end
+    end)
     return true
 end
 
@@ -2625,11 +2689,21 @@ function Library:HookSound(FnName, Holder, Name)
     elseif FnName == 'CreateToggleColor' then
         local B = Holder:FindFirstChild(Name..'ToggleColorButton')
         if B then B.MouseButton1Down:Connect(Click) end
+    -- elseif FnName == 'CreateSlider' then
+    --     local Btn = Holder:FindFirstChild(Name..'SliderButton')
+    --     if Btn then
+    --         Btn.MouseButton1Down:Connect(function()
+    --             Library:StartSliderSfx()     -- giữ = lặp, thả = dừng (xử lý ở InputEnded)
+    --         end)
+    --     end
+    -- end
     elseif FnName == 'CreateSlider' then
         local Btn = Holder:FindFirstChild(Name..'SliderButton')
-        if Btn then
-            Btn.MouseButton1Down:Connect(function()
-                Library:StartSliderSfx()     -- giữ = lặp, thả = dừng (xử lý ở InputEnded)
+        local Num = Holder:FindFirstChild(Name..'SliderNumberText')
+        if Btn and Num then
+            Btn.MouseButton1Down:Connect(function() SfxDragging = true end)
+            Num:GetPropertyChangedSignal('Text'):Connect(function()
+                if SfxDragging then Library:SliderSfxTick() end
             end)
         end
     end
