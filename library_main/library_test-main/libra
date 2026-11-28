@@ -3616,13 +3616,23 @@ local MinimizeButton = Utility:Create('TextButton', {
         end)
     end
 
-    function ChangeThemeValue()
-        task.spawn(function()
-            ChangeTheme = true
-            task.wait()
-            ChangeTheme = false
-        end)
-    end
+    -- function ChangeThemeValue()
+    --     task.spawn(function()
+    --         ChangeTheme = true
+    --         task.wait()
+    --         ChangeTheme = false
+    --     end)
+    -- end
+
+local ThemePulse = 0
+function ChangeThemeValue()
+    ThemePulse += 1
+    local My = ThemePulse
+    ChangeTheme = true
+    task.delay(0.15, function()
+        if ThemePulse == My then ChangeTheme = false end   -- gọi liên tiếp thì chỉ lần cuối mới tắt
+    end)
+end
 
     function Library:ChangeTheme(NewTheme)
         if not ImprovePerformance then
@@ -9200,7 +9210,7 @@ end
             Group:SetAttribute('Collapsed', false)
             table.insert(GroupFrames, Group)
 
-            -- chiều cao group = nội dung bên trong (đã chia ngược UIScale)
+          
             local GroupLayout = Group.GroupLayout
             -- local function SyncGroup()
             --     local S = MainScale.Scale * GROUP_SCALE
@@ -9229,14 +9239,14 @@ end
             Group:GetAttributeChangedSignal('Collapsed'):Connect(ApplyCollapsed)
             Group.ChildAdded:Connect(function(Child)
                 if Group:GetAttribute('Collapsed') == true and Child:IsA('GuiObject') and Child.Name ~= 'GroupTitleBar' then
-                    Child.Visible = false      -- section tạo thêm khi group đang đóng thì ẩn luôn
+                    Child.Visible = false     
                 end
             end)
             FoldButton.MouseButton1Click:Connect(function()
                 Group:SetAttribute('Collapsed', not (Group:GetAttribute('Collapsed') == true))
             end)
 
-            -- đổi theme thì cập nhật màu thanh tiêu đề
+          
             task.spawn(function()
                 while Group.Parent and not BreakAllLoops do
                     pcall(function()
@@ -9265,7 +9275,7 @@ end
             end
             return GroupFunctions
         end
-        -- ================= HẾT GROUP =================      
+        -- ================= end group =================      
 
 
 
