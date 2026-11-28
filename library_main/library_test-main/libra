@@ -1892,6 +1892,237 @@ function Library:RunAutoLoad()
     end
 end
 -- ===== HẾT AUTO LOAD =====
+-- ===== SOUND (hiệu ứng + trình phát) =====
+local SoundService = game:GetService('SoundService')
+local SOUND_FILE = 'BB/sounds.json'
+
+local SavedSounds = {}          -- { {Id = '123', Name = 'abc'} }
+local SfxId = {}                -- [Slider / Click / Startup] = id đang dùng
+local SfxObjects = {}
+local SfxVolume = 1
+local PreviewSound
+local PreviewVolume = 1
+local SoundsChangedCallback
+local SoundCoreReady = false
+local SfxDragging = false
+
+local function SoundLabel(E)
+    if E.Name ~= '' then return E.Name..' ('..E.Id..')' end
+    return E.Id
+end
+
+local function FindSoundById(Id)
+    for _, E in ipairs(SavedSounds) do
+        if E.Id == Id then return E end
+    end
+end
+
+local function SaveSoundFile()
+    if not isfolder('BB') then makefolder('BB') end
+    writefile(SOUND_FILE, HttpService:JSONEncode(SavedSounds))
+end
+
+local function LoadSoundFile()
+    SavedSounds = {}
+    if isfile(SOUND_FILE) then
+        local Ok, Data = pcall(function()
+            return HttpService:JSONDecode(readfile(SOUND_FILE))
+        end)
+        if Ok and type(Data) == 'table' then
+            for _, E in ipairs(Data) do
+                if type(E) == 'table' and E.Id then
+                    table.insert(SavedSounds, { Id = tostring(E.Id), Name = tostring(E.Name or '') })
+                end
+            end
+        end
+    end
+end
+LoadSoundFile()
+
+local function NotifySoundsChanged()
+    if SoundsChangedCallback then task.spawn(SoundsChangedCallback) end
+end
+
+-- đăng ký dọn dẹp lần đầu cần dùng (tránh bị vòng lặp reset lúc mới load phá)
+local function EnsureSoundCore()
+    if SoundCoreReady then return end
+    SoundCoreReady = true
+    local EndConn = UserInputService.InputEnded:Connect(function(Input)
+        if Input.UserInputType == Enum.UserInputType.MouseButton1
+        or Input.UserInputType == Enum.UserInputType.Touch then
+            SfxDragging = false
+        end
+    end)
+    Ihatethisui['BBHSound'] = { Break = function()
+        EndConn:Disconnect()
+        for _, S in next, SfxObjects do pcall(function() S:Destroy() end) end
+        if PreviewSound then pcall(function() PreviewSound:Destroy() end) end
+    end }
+end
+
+function Library:OnSoundsChanged(Callback)
+    SoundsChangedCallback = Callback
+end
+
+function Library:GetSavedSounds()
+    local L = {}
+    for _, E in ipairs(SavedSounds) do L[#L + 1] = SoundLabel(E) end
+    return L
+end
+
+function Library:GetSoundId(Label)
+    for _, E in ipairs(SavedSounds) do
+        if SoundLabel(E) == Label then return E.Id end
+    end
+end
+
+function Library:AddSound(Id, Name)
+    local Clean = tostring(Id or ''):match('%d+')
+    if not Clean then
+        Library:CreateNotification('Sound', 'Please enter a valid sound ID.', 4)
+        return false
+    end
+    local N = tostring(Name or ''):gsub('^%s+', ''):gsub('%s+$', '')
+    N = N:sub(1, 24)
+
+    local Found = FindSoundById(Clean)
+    if Found then
+        if N ~= '' then Found.Name = N end
+    else
+        table.insert(SavedSounds, { Id = Clean, Name = N })
+    end
+    SaveSoundFile()
+    Library:CreateNotification('Sound', 'Saved sound '..Clean..'.', 4)
+    NotifySoundsChanged()
+    return true
+end
+
+function Library:RemoveSound(Label)
+    for Index, E in ipairs(SavedSounds) do
+        if SoundLabel(E) == Label then
+            table.remove(SavedSounds, Index)
+            for Kind, Id in next, SfxId do
+                if Id == E.Id then SfxId[Kind] = nil end
+            end
+            SaveSoundFile()
+            Library:CreateNotification('Sound', 'Deleted '..Label..'.', 4)
+            NotifySoundsChanged()
+            return true
+        end
+    end
+    Library:CreateNotification('Sound', 'Please select a saved sound first.', 4)
+    return false
+end
+
+-- Kind: 'Slider' | 'Click' | 'Startup'. Label = tên trong list, hoặc 'None'
+function Library:SetSfx(Kind, Label)
+    if Label and Label ~= 'None' then
+        SfxId[Kind] = Library:GetSoundId(Label)
+    else
+        SfxId[Kind] = nil
+    end
+end
+
+function Library:GetSfxLabel(Kind)
+    local Id = SfxId[Kind]
+    if not Id then return nil end
+    local E = FindSoundById(Id)
+    return E and SoundLabel(E) or nil
+end
+
+function Library:SetSfxVolume(Value)
+    SfxVolume = math.clamp(tonumber(Value) or 1, 0, 10)
+end
+
+function Library:PlaySfx(Kind)
+    local Id = SfxId[Kind]
+    if not Id then return end
+    local S = SfxObjects[Kind]
+    if not S or not S.Parent then
+        S = Instance.new('Sound')
+        S.Name = 'BBHSfx'..Kind
+        S.Parent = SoundService
+        SfxObjects[Kind] = S
+    end
+    local Asset = 'rbxassetid://'..Id
+    if S.SoundId ~= Asset then S.SoundId = Asset end
+    S.Volume = SfxVolume
+    S.TimePosition = 0
+    S:Play()
+end
+
+function Library:SetPreviewVolume(Value)
+    PreviewVolume = math.clamp(tonumber(Value) or 1, 0, 10)
+    if PreviewSound then PreviewSound.Volume = PreviewVolume end
+end
+
+function Library:StopSound()
+    if PreviewSound then
+        local S = PreviewSound
+        PreviewSound = nil
+        pcall(function() S:Stop() S:Destroy() end)
+    end
+end
+
+function Library:PlaySound(Id)
+    EnsureSoundCore()
+    local Clean = tostring(Id or ''):match('%d+')
+    if not Clean then
+        Library:CreateNotification('Sound', 'Please enter a valid sound ID.', 4)
+        return false
+    end
+    Library:StopSound()
+
+    local S = Instance.new('Sound')
+    S.Name = 'BBHPreview'
+    S.SoundId = 'rbxassetid://'..Clean
+    S.Volume = PreviewVolume
+    S.Parent = SoundService
+    PreviewSound = S
+    S.Ended:Connect(function()
+        if PreviewSound == S then PreviewSound = nil end
+        S:Destroy()
+    end)
+    S:Play()
+
+    task.delay(4, function()
+        if PreviewSound == S and S.Parent and not S.IsLoaded then
+            Library:CreateNotification('Sound', 'Sound did not load. The ID may be invalid or not playable.', 5)
+        end
+    end)
+    return true
+end
+
+-- gắn tiếng vào nút / toggle / slider vừa tạo
+function Library:HookSound(FnName, Holder, Name)
+    EnsureSoundCore()
+    local function Click() Library:PlaySfx('Click') end
+
+    if FnName == 'CreateButton' then
+        local B = Holder:FindFirstChild(Name..'Button')
+        if B then B.MouseButton1Down:Connect(Click) end
+    elseif FnName == 'CreateToggle' then
+        local B = Holder:FindFirstChild(Name..'ToggleButton')
+        if B then B.MouseButton1Down:Connect(Click) end
+    elseif FnName == 'CreateToggleColor' then
+        local B = Holder:FindFirstChild(Name..'ToggleColorButton')
+        if B then B.MouseButton1Down:Connect(Click) end
+    elseif FnName == 'CreateSlider' then
+        local Btn = Holder:FindFirstChild(Name..'SliderButton')
+        local Num = Holder:FindFirstChild(Name..'SliderNumberText')
+        if Btn and Num then
+            local Last = 0
+            Btn.MouseButton1Down:Connect(function() SfxDragging = true end)
+            Num:GetPropertyChangedSignal('Text'):Connect(function()
+                if SfxDragging and os.clock() - Last > 0.07 then
+                    Last = os.clock()
+                    Library:PlaySfx('Slider')
+                end
+            end)
+        end
+    end
+end
+-- ===== HẾT SOUND =====
 ------------------
 
 function Library:CreateWindow(HubName, GameName, IntroText, IntroIcon, ImprovePerformance, ConfigFolder, Theme)
@@ -7733,7 +7964,15 @@ end
                     end
 
 
-
+                    -- gắn sound cho nút / toggle / slider
+                    if Name ~= '' then
+                        for _, Child in next, Section:GetChildren() do
+                            if not Before[Child] and Child:IsA('GuiObject') then
+                                Library:HookSound(FnName, Child, Name)
+                                break
+                            end
+                        end
+                    end
 
 
                     -- 1) Ô CreateKeybind: luôn lên bảng
