@@ -1892,12 +1892,23 @@ function Library:RunAutoLoad()
     end
 end
 -- ===== HẾT AUTO LOAD =====
--- ===== SOUND (hiệu ứng + trình phát) =====
+-- ===== SOUND (hiệu ứng + trình phát + thư mục nhạc) =====
 local SoundService = game:GetService('SoundService')
 local SOUND_FILE = 'BB/sounds.json'
+local MUSIC_DIR = 'BB/music'
+local GetAsset = getcustomasset or getsynasset
 
-local SavedSounds = {}          -- { {Id = '123', Name = 'abc'} }
-local SfxId = {}                -- [Slider / Click / Startup] = id đang dùng
+-- Sound CÓ SẴN của script (list Slider / Button / Toggle chỉ hiện các sound này)
+-- Thêm bớt tùy ý: { Name = 'tên hiện trong list', Id = 'id sound' }
+local BuiltInSfx = {
+    { Name = 'Click', Id = '421058925' },     -- ví dụ: thay bằng ID của bạn
+    { Name = 'Soft Click', Id = '6895079853' },
+    { Name = 'Tick', Id = '9120386436' },
+}
+
+local SavedSounds = {}          -- danh sách ID người dùng tự lưu (cho trình phát)
+local SfxId = {}                -- [Slider / Click / Startup] = id hoặc đường dẫn file
+local SfxLabel = {}
 local SfxObjects = {}
 local SfxVolume = 1
 local PreviewSound
@@ -1905,6 +1916,12 @@ local PreviewVolume = 1
 local SoundsChangedCallback
 local SoundCoreReady = false
 local SfxDragging = false
+
+local function EnsureMusicDir()
+    if not isfolder('BB') then makefolder('BB') end
+    if not isfolder(MUSIC_DIR) then makefolder(MUSIC_DIR) end
+end
+EnsureMusicDir()
 
 local function SoundLabel(E)
     if E.Name ~= '' then return E.Name..' ('..E.Id..')' end
@@ -1943,14 +1960,41 @@ local function NotifySoundsChanged()
     if SoundsChangedCallback then task.spawn(SoundsChangedCallback) end
 end
 
--- đăng ký dọn dẹp lần đầu cần dùng (tránh bị vòng lặp reset lúc mới load phá)
+-- id số -> rbxassetid, đường dẫn file -> getcustomasset
+local function AssetFor(Src)
+    if not Src then return nil end
+    if Src:sub(1, #MUSIC_DIR + 1) == MUSIC_DIR..'/' then
+        if not GetAsset or not isfile(Src) then return nil end
+        local Ok, Asset = pcall(GetAsset, Src)
+        return Ok and Asset or nil
+    end
+    return 'rbxassetid://'..Src
+end
+
+-- tên trong list -> nguồn phát (sound có sẵn hoặc file nhạc)
+local function ResolveSfx(Label)
+    if not Label or Label == 'None' then return nil end
+    for _, E in ipairs(BuiltInSfx) do
+        if E.Name == Label then return E.Id end
+    end
+    local F = Label:match('^%[file%] (.+)$')
+    if F then
+        local P = MUSIC_DIR..'/'..F
+        if isfile(P) then return P end
+    end
+    return nil
+end
+
 local function EnsureSoundCore()
     if SoundCoreReady then return end
     SoundCoreReady = true
     local EndConn = UserInputService.InputEnded:Connect(function(Input)
         if Input.UserInputType == Enum.UserInputType.MouseButton1
         or Input.UserInputType == Enum.UserInputType.Touch then
-            SfxDragging = false
+            if SfxDragging then
+                SfxDragging = false
+                Library:StopSfx('Slider')      -- thả chuột là tắt tiếng slider
+            end
         end
     end)
     Ihatethisui['BBHSound'] = { Break = function()
@@ -1964,6 +2008,49 @@ function Library:OnSoundsChanged(Callback)
     SoundsChangedCallback = Callback
 end
 
+-- ---------- sound có sẵn + hiệu ứng ----------
+function Library:GetBuiltInSfx()
+    local L = {}
+    for _, E in ipairs(BuiltInSfx) do L[#L + 1] = E.Name end
+    return L
+end
+
+-- Kind: 'Slider' | 'Click' | 'Startup'
+function Library:SetSfx(Kind, Label)
+    SfxId[Kind] = ResolveSfx(Label)
+    SfxLabel[Kind] = SfxId[Kind] and Label or nil
+end
+
+function Library:GetSfxLabel(Kind)
+    return SfxLabel[Kind]
+end
+
+function Library:SetSfxVolume(Value)
+    SfxVolume = math.clamp(tonumber(Value) or 1, 0, 10)
+end
+
+function Library:PlaySfx(Kind)
+    local Asset = AssetFor(SfxId[Kind])
+    if not Asset then return end
+    local S = SfxObjects[Kind]
+    if not S or not S.Parent then
+        S = Instance.new('Sound')
+        S.Name = 'BBHSfx'..Kind
+        S.Parent = SoundService
+        SfxObjects[Kind] = S
+    end
+    if S.SoundId ~= Asset then S.SoundId = Asset end
+    S.Volume = SfxVolume
+    S.TimePosition = 0
+    S:Play()
+end
+
+function Library:StopSfx(Kind)
+    local S = SfxObjects[Kind]
+    if S and S.Parent then S:Stop() end
+end
+
+-- ---------- trình phát (ID tự nhập) ----------
 function Library:GetSavedSounds()
     local L = {}
     for _, E in ipairs(SavedSounds) do L[#L + 1] = SoundLabel(E) end
@@ -2001,9 +2088,6 @@ function Library:RemoveSound(Label)
     for Index, E in ipairs(SavedSounds) do
         if SoundLabel(E) == Label then
             table.remove(SavedSounds, Index)
-            for Kind, Id in next, SfxId do
-                if Id == E.Id then SfxId[Kind] = nil end
-            end
             SaveSoundFile()
             Library:CreateNotification('Sound', 'Deleted '..Label..'.', 4)
             NotifySoundsChanged()
@@ -2012,43 +2096,6 @@ function Library:RemoveSound(Label)
     end
     Library:CreateNotification('Sound', 'Please select a saved sound first.', 4)
     return false
-end
-
--- Kind: 'Slider' | 'Click' | 'Startup'. Label = tên trong list, hoặc 'None'
-function Library:SetSfx(Kind, Label)
-    if Label and Label ~= 'None' then
-        SfxId[Kind] = Library:GetSoundId(Label)
-    else
-        SfxId[Kind] = nil
-    end
-end
-
-function Library:GetSfxLabel(Kind)
-    local Id = SfxId[Kind]
-    if not Id then return nil end
-    local E = FindSoundById(Id)
-    return E and SoundLabel(E) or nil
-end
-
-function Library:SetSfxVolume(Value)
-    SfxVolume = math.clamp(tonumber(Value) or 1, 0, 10)
-end
-
-function Library:PlaySfx(Kind)
-    local Id = SfxId[Kind]
-    if not Id then return end
-    local S = SfxObjects[Kind]
-    if not S or not S.Parent then
-        S = Instance.new('Sound')
-        S.Name = 'BBHSfx'..Kind
-        S.Parent = SoundService
-        SfxObjects[Kind] = S
-    end
-    local Asset = 'rbxassetid://'..Id
-    if S.SoundId ~= Asset then S.SoundId = Asset end
-    S.Volume = SfxVolume
-    S.TimePosition = 0
-    S:Play()
 end
 
 function Library:SetPreviewVolume(Value)
@@ -2064,18 +2111,11 @@ function Library:StopSound()
     end
 end
 
-function Library:PlaySound(Id)
-    EnsureSoundCore()
-    local Clean = tostring(Id or ''):match('%d+')
-    if not Clean then
-        Library:CreateNotification('Sound', 'Please enter a valid sound ID.', 4)
-        return false
-    end
+local function StartPreview(Asset)
     Library:StopSound()
-
     local S = Instance.new('Sound')
     S.Name = 'BBHPreview'
-    S.SoundId = 'rbxassetid://'..Clean
+    S.SoundId = Asset
     S.Volume = PreviewVolume
     S.Parent = SoundService
     PreviewSound = S
@@ -2087,10 +2127,71 @@ function Library:PlaySound(Id)
 
     task.delay(4, function()
         if PreviewSound == S and S.Parent and not S.IsLoaded then
-            Library:CreateNotification('Sound', 'Sound did not load. The ID may be invalid or not playable.', 5)
+            Library:CreateNotification('Sound', 'Sound did not load. The ID / file may be invalid.', 5)
         end
     end)
+end
+
+function Library:PlaySound(Id)
+    EnsureSoundCore()
+    local Clean = tostring(Id or ''):match('%d+')
+    if not Clean then
+        Library:CreateNotification('Sound', 'Please enter a valid sound ID.', 4)
+        return false
+    end
+    StartPreview('rbxassetid://'..Clean)
     return true
+end
+
+-- ---------- thư mục nhạc BB/music ----------
+function Library:GetMusicFiles()
+    EnsureMusicDir()
+    local L = {}
+    for _, P in next, listfiles(MUSIC_DIR) do
+        local Name = P:match('([^/\\]+)$')
+        local Ext = Name and Name:match('%.(%w+)$')
+        Ext = Ext and Ext:lower()
+        if Ext == 'mp3' or Ext == 'ogg' then
+            L[#L + 1] = Name
+        end
+    end
+    table.sort(L, function(A, B) return A:lower() < B:lower() end)
+    return L
+end
+
+function Library:PlayMusicFile(Name)
+    EnsureSoundCore()
+    if not Name or Name == '' then
+        Library:CreateNotification('Music', 'Please select a music file first.', 4)
+        return false
+    end
+    local Path = MUSIC_DIR..'/'..Name
+    if not isfile(Path) then
+        Library:CreateNotification('Music', 'File not found. Press Refresh.', 4)
+        return false
+    end
+    if not GetAsset then
+        Library:CreateNotification('Music', 'Your executor has no getcustomasset.', 5)
+        return false
+    end
+    local Asset = AssetFor(Path)
+    if not Asset then
+        Library:CreateNotification('Music', 'Could not load this file.', 4)
+        return false
+    end
+    StartPreview(Asset)
+    return true
+end
+
+function Library:DeleteMusicFile(Name)
+    local Path = MUSIC_DIR..'/'..tostring(Name or '')
+    if Name and Name ~= '' and isfile(Path) then
+        delfile(Path)
+        Library:CreateNotification('Music', 'Deleted '..Name..'.', 4)
+        return true
+    end
+    Library:CreateNotification('Music', 'Please select a music file first.', 4)
+    return false
 end
 
 -- gắn tiếng vào nút / toggle / slider vừa tạo
@@ -2111,13 +2212,24 @@ function Library:HookSound(FnName, Holder, Name)
         local Btn = Holder:FindFirstChild(Name..'SliderButton')
         local Num = Holder:FindFirstChild(Name..'SliderNumberText')
         if Btn and Num then
-            local Last = 0
+            local Last, Stamp, LastText = 0, 0, Num.Text
             Btn.MouseButton1Down:Connect(function() SfxDragging = true end)
             Num:GetPropertyChangedSignal('Text'):Connect(function()
-                if SfxDragging and os.clock() - Last > 0.07 then
+                local T = Num.Text
+                if T == LastText then return end
+                LastText = T
+                if not SfxDragging then return end      -- chỉ kêu khi đang kéo
+
+                Stamp = Stamp + 1
+                local My = Stamp
+                if os.clock() - Last > 0.07 then
                     Last = os.clock()
                     Library:PlaySfx('Slider')
                 end
+                -- giữ yên 0.2s không đổi giá trị thì tắt tiếng
+                task.delay(0.2, function()
+                    if Stamp == My then Library:StopSfx('Slider') end
+                end)
             end)
         end
     end
