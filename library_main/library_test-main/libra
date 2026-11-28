@@ -2731,9 +2731,10 @@ local NotifyHolder, NotifyLayout
 -- Thêm sound noti ở đây: { Name = 'tên hiện trong list', Id = 'id' }
 SfxLists.Notify = {
     { Name = 'Default',    Id = '8486683243' },
-    { Name = 'Click',      Id = '421058925' },
-    { Name = 'Soft Click', Id = '6895079853' },
-    { Name = 'Classic',    Id = '12221967' },
+    { Name = 'Notification High',      Id = '17208361335' },
+    { Name = 'Notification', Id = '130467592920597' },
+    { Name = 'what app',    Id = '6928291257' },
+    { Name = 'discord',    Id = '135272730546427' },
 }
 SfxSrc.Notify = SfxLists.Notify[1].Id
 SfxLabel.Notify = SfxLists.Notify[1].Name
